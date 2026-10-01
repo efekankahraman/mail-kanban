@@ -51,7 +51,7 @@ Herkesin iş akışı farklı. Varsayımla ilerleme. AskUserQuestion ile (seçen
 6. **Takip süreleri:** Kaç iş günü hareketsiz kalınca "bekleyen" sayılsın (varsayılan 3)? Hatırlatmadan sonra kaç iş günü beklensin (varsayılan 2)? Hatırlatma metni ne olsun (varsayılan "burada bir gelişme var mı")?
 7. **Yok sayılacaklar:** Artık bakmadığı marka/konu var mı? Bunlara ait mailler, kullanıcıya direkt değilse okundu yapılır ve board'a gelmez.
 8. **Cevap taslağı üslubu:** Açılış, kapanış ve ton. Varsayılan: "Selamlar, … Sevgiler,", ne çok resmi ne çok samimi, karşı taraf "Bey/Hanım" demediyse kullanma. Gmail imzası otomatik eklenir.
-9. **Şirket bilgisi:** Şirket adı, şirket domaini, imzadaki adres parçaları. Adres parçaları marka sanılmasın diye sorulur; örnek vakada imzadaki bir semt adı markayla karıştı.
+9. **Şirket bilgisi:** Şirket adı, şirket domaini, imzadaki adres parçaları. Adres parçaları marka sanılmasın diye sorulur; örnek vakada imzadaki "Darüşşafaka" semt adı markayla karıştı.
 10. **Jira/Asana vb.:** Kullanıyorsa bildirim adresinin parçası (ör. `atlassian.net`, `asana.com`).
 
 11. **Gmail'i nasıl yönetiyor? (ÇOK ÖNEMLİ, mutlaka sor ve anlat)** Board'un standart çalışma şekli şudur, kullanıcıya açıkça söyle:
