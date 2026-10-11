@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>Mail Board</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
   --bg:#f4f5f7; --panel:#ffffff; --col:#eceef2; --text:#1b1f24; --muted:#667085; --line:#e2e5ea;
   --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
   --p1:#e5484d; --p2:#8b5cf6; --p3:#2f7cf6; --p4:#64748b; --p5:#a0aab8;
-  --s-MY_REPLY:#e5484d; --s-WATCH:#0891b2; --s-STALE:#ea580c; --s-CLIENT_STALE:#a21caf; --s-LATER:#64748b; --s-REMINDED:#d97706; --s-WAITING_CM:#f59e0b; --s-IN_PROGRESS:#2f7cf6; --s-WAITING_CLIENT:#7c3aed; --s-JIRA:#0052cc;
+  --s-MY_REPLY:#e5484d; --s-WATCH:#0891b2; --s-STALE:#ea580c; --s-CLIENT_STALE:#a21caf; --s-LATER:#64748b; --s-REMINDED:#d97706; --s-WAITING_CM:#f59e0b; --s-ACTION:#db2777; --s-IN_PROGRESS:#2f7cf6; --s-WAITING_CLIENT:#7c3aed; --s-JIRA:#0052cc; --s-JIRA_WIP:#3b82f6; --s-JIRA_DONE:#16a34a;
   --s-COMPLETED:#16a34a; --s-FYI:#94a3b8; --s-INTERNAL:#0ea5a4; --s-AUTO:#b8a1e8; --s-DONE:#9ca3af;
   --chip:#eef0f4; --chip-on:#1b1f24; --chip-on-text:#fff; --accent:#1b1f24; --sel:#2f7cf6;
 }
@@ -28,6 +28,8 @@ header{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;padding:12px
 h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.01em}
 .sub{color:var(--muted);font-size:12px}
 .spacer{flex:1}
+#imgZoom{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;gap:10px;padding:20px}#imgZoom.show{display:flex}#imgZoom figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:8px;max-width:88vw}#imgZoom img{max-width:88vw;max-height:84vh;border-radius:8px;background:#fff;box-shadow:0 10px 40px rgba(0,0,0,.5)}#imgZoom figcaption{color:#e5e7eb;font-size:12.5px}#imgZoom button{border:0;background:rgba(255,255,255,.14);color:#fff;border-radius:50%;width:40px;height:40px;font-size:24px;line-height:40px;cursor:pointer;flex:none}#imgZoom button:hover{background:rgba(255,255,255,.28)}#imgZoom .iz-x{position:absolute;top:14px;right:16px}
+.qwrap{position:relative;display:inline-flex;align-items:center}.qwrap .search{padding-right:28px;width:100%}.qclear{position:absolute;right:5px;top:50%;transform:translateY(-50%);display:none;border:0;background:var(--line);color:var(--text);width:20px;height:20px;border-radius:50%;font-size:14px;line-height:20px;padding:0;cursor:pointer}.qclear:hover{background:var(--muted);color:var(--bg)}.qwrap.has .qclear{display:block}
 .search{border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:8px;padding:7px 10px;min-width:220px;font:inherit}
 .btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:7px 12px;font:inherit;font-weight:500;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
@@ -37,6 +39,10 @@ h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.01em}
 .btn:disabled{opacity:.5;cursor:default}
 .filters{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 .fgroup{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.bf-pop{position:fixed;z-index:60;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.18);width:260px;max-width:calc(100vw - 24px);padding:8px;display:none}
+.bf-pop.show{display:block}.bf-pop input[type=search]{width:100%;box-sizing:border-box;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:7px;padding:6px 8px;font:inherit;font-size:13px;margin-bottom:6px}
+.bf-list{max-height:300px;overflow:auto;display:flex;flex-direction:column}.bf-list label{display:flex;gap:8px;align-items:center;padding:5px 6px;border-radius:6px;cursor:pointer;font-size:13px}.bf-list label:hover{background:var(--chip)}
+.bf-list .n{margin-left:auto;color:var(--muted);font-size:11.5px}.bf-foot{display:flex;justify-content:space-between;margin-top:6px;font-size:12px}.bf-foot button{border:0;background:none;color:#2563eb;cursor:pointer;font:inherit;padding:2px 4px}
 .flabel{color:var(--muted);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-right:2px}
 .chip{border:0;background:var(--chip);color:var(--text);border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .chip.on{background:var(--chip-on);color:var(--chip-on-text)}
@@ -86,6 +92,20 @@ h1{font-size:16px;margin:0;font-weight:700;letter-spacing:-.01em}
 .card:hover .qai{display:inline-flex}.card .qai:hover{border-color:var(--sel)}
 body.selecting .card .qai{display:none}
 @media (hover:none){ .card .qai{display:none!important} }
+.jt{border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:8px}.jt.off{opacity:.55}.jt-h{font-weight:700;font-size:12.5px;margin-bottom:6px}.jt-r{font-weight:400;color:var(--muted)}
+.jx{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}.jx-tabs{display:flex;gap:4px;margin-bottom:6px}.jx-tabs button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:7px;padding:3px 9px;font:inherit;font-size:12px;cursor:pointer}.jx-tabs button.on{background:var(--text);color:var(--panel);border-color:var(--text)}
+.jx-row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.jx-row input,.jx-row select{flex:1;min-width:120px;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:7px;padding:5px 8px;font:inherit;font-size:12.5px}.jx-res{font-size:12px;margin-top:5px;color:var(--muted)}.jx-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}.jx-ok{margin-top:8px;padding:8px 10px;border-radius:8px;background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.35);font-size:12.5px}.jx-ok .jx-row{margin-top:6px}.jcm{border-color:rgba(37,99,235,.35)}.jx-att{margin:2px 0 6px}.att-h{display:flex;gap:10px;align-items:center;margin-bottom:4px}.att-h a{font-size:12px}.att-g{margin:4px 0 6px}.att-gh{font-size:11.5px;color:var(--muted);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.att-gl{display:flex;flex-wrap:wrap;gap:5px}.achip.old{opacity:.6}.ath{width:34px;height:34px;border-radius:5px;background:var(--line) center/cover no-repeat;display:inline-flex;align-items:center;justify-content:center;flex:none;cursor:zoom-in}.achip .atn{max-width:190px}#attZoom{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:none;align-items:center;justify-content:center;cursor:zoom-out}#attZoom img{max-width:92vw;max-height:90vh;border-radius:8px;background:#fff}.jx-att:empty{display:none}.achip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:7px;padding:2px 8px;font-size:12px;cursor:pointer;max-width:260px}.achip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.achip:has(input:checked){border-color:#2563eb;background:rgba(37,99,235,.08)}
+.rmode{display:flex;gap:4px;margin:0 0 8px}.rmode button{border:1px solid var(--line);background:none;color:var(--muted);border-radius:7px;padding:4px 10px;font:inherit;font-size:12.5px;cursor:pointer}.rmode button.on{background:var(--text);color:var(--panel);border-color:var(--text)}
+.pchip{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:999px;padding:2px 9px;font:inherit;font-size:12px;cursor:pointer}.pchip:hover{border-color:var(--text)}.jc-info b{font-weight:700}.jx-res a{font-weight:700}
+.jc{border:1px solid var(--line);border-radius:9px;padding:8px 10px;margin-top:8px;font-size:12.5px}.jc .jx-row{margin-top:6px}
+.jr{display:flex;gap:6px;margin:0 0 6px}.jr input{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:7px;padding:6px 9px;font:inherit;font-size:13px;font-weight:600}
+body.viewer>*:not(#viewer){display:none!important}#viewer{max-width:860px;margin:0 auto;padding:14px 16px 40px}.vw-top{display:flex;gap:10px;align-items:center;margin-bottom:10px}.vw-top h2{flex:1;margin:0;font-size:17px}
+.rc{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 8px;align-items:center}
+.rc .rcp{border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-size:12px;border-radius:999px;padding:3px 9px;cursor:pointer;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rc .rcp b{font-weight:700;font-size:10.5px;margin-right:2px}.rc .rcp i{font-style:normal;font-size:10px;opacity:.7}
+.rc .rcp.to{border-color:var(--sel);color:var(--text);background:color-mix(in srgb,var(--sel) 12%,transparent)}.rc .rcp.to b{color:var(--sel)}
+.rc .rcp.cc{border-color:color-mix(in srgb,var(--sel) 45%,transparent);color:var(--text)}
+.rc input{border:1px dashed var(--line);background:transparent;color:var(--text);border-radius:999px;padding:3px 9px;font:inherit;font-size:12px;width:150px}
 .ai-row{display:flex;gap:6px;margin:4px 0 8px}.ai-row input{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px}
 .ai-busy textarea{background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--sel) 10%,transparent),transparent) 0 0/200% 100%;animation:aiShine 1.2s linear infinite}
 @keyframes aiShine{to{background-position:-200% 0}}
@@ -120,7 +140,18 @@ body.selecting .toast{bottom:84px}
 .ov.show{display:flex}
 .modal{background:var(--panel);border-radius:14px;max-width:820px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:20px 22px 22px}
 .m-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.rx{flex-basis:100%;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px}.rx .pchip{cursor:pointer}.rx input{width:170px;padding:3px 7px;font-size:12px}
+.rloop{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}.rloop select{flex:1;min-width:0;max-width:100%}.rloop .meta:last-child{flex-basis:100%}
 .mdone-top{display:none}
+.jst{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-2px 0 10px}.jst select{max-width:260px}.jst select:disabled{opacity:.7}
+/* Jira kartından maile cevap: seçilen marka maili pencerenin yanında */
+.peek{display:none;background:var(--panel);border-radius:14px;box-shadow:0 20px 50px rgba(0,0,0,.25);padding:16px 18px 18px;width:520px;flex:0 1 520px;min-width:0;margin-left:14px;position:sticky;top:0;align-self:flex-start;max-height:calc(100vh - 80px);overflow-y:auto}
+.ov.peeking .peek{display:block}
+.ov.peeking .modal{flex:1 1 640px;min-width:0}
+.peek-h{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px}
+.peek-h h3{margin:0;font-size:15px;line-height:1.35;flex:1;min-width:0}
+.peek .msgs{margin-top:6px}
+@media (max-width:1100px){ .ov.peeking{flex-direction:column;align-items:center} .peek{width:100%;max-width:820px;flex:none;margin:12px 0 0;position:static;max-height:none} .ov.peeking .modal{flex:none;width:100%} }
 /* Mobil: kart penceresi tam ekran, üst şerit (gezinme, Done, kapat) kaydırırken sabit kalır */
 @media (max-width:640px){
   .ov{padding:0}
@@ -180,6 +211,7 @@ body.touch .ov{touch-action:pan-y}
 @media (max-width:640px){
   .grid{grid-template-columns:1fr}
   .search{min-width:0;flex:1}
+  .qwrap{min-width:0;flex:1}
   .col{min-width:82vw;width:82vw}
 }
 /* Mobilde üst alan açılır/kapanır: kapalıyken sadece başlık + sekmeler + aç düğmesi kalır, kartlara yer açılır */
@@ -196,9 +228,9 @@ body.touch .ov{touch-action:pan-y}
   .toptoggle{order:3;margin-left:0}
   .tabs button{padding:4px 9px;font-size:12px}
   body:not(.top-collapsed) header{flex-wrap:wrap}
-  body:not(.top-collapsed) #q{order:4;flex:1 1 100%}
+  body:not(.top-collapsed) #qWrap{order:4;flex:1 1 100%}
   body:not(.top-collapsed) #refreshBtn,body:not(.top-collapsed) #syncBtn{order:5}
-  body.top-collapsed #syncInfo, body.top-collapsed #q, body.top-collapsed #refreshBtn, body.top-collapsed #syncBtn, body.top-collapsed .filters, body.top-collapsed .an-ctrl{display:none}
+  body.top-collapsed #syncInfo, body.top-collapsed #qWrap, body.top-collapsed #refreshBtn, body.top-collapsed #syncBtn, body.top-collapsed .filters, body.top-collapsed .an-ctrl{display:none}
   body.top-collapsed h1{font-size:15px}
   .board{padding-top:10px}
 }
@@ -207,7 +239,40 @@ body.touch .ov{touch-action:pan-y}
 .tabs{display:inline-flex;background:var(--chip);border-radius:9px;padding:3px;gap:2px}
 .tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:600;font-size:12.5px;padding:5px 12px;border-radius:7px;cursor:pointer}
 .tabs button.on{background:var(--panel);color:var(--text);box-shadow:var(--shadow)}
-body.view-an .filters,body.view-an #board,body.view-an #q,body.view-an .selbar{display:none}
+body.view-an .filters,body.view-an #board,body.view-an #qWrap,body.view-an .selbar{display:none}
+body.view-ap .filters,body.view-ap #board,body.view-ap #qWrap,body.view-ap .selbar{display:none}
+.apn{display:none;margin-left:5px;background:var(--sel);color:#fff;border-radius:9px;font-size:10.5px;padding:0 6px;line-height:16px}
+.apn.on{display:inline-block}
+.ap{display:none;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 16px 80px}
+body.view-ap .ap{display:block}
+.ap-head{display:flex;align-items:flex-end;gap:10px;max-width:880px;margin:0 auto 12px}
+.ap-head h2{margin:0;font-size:18px}
+#apList{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.apc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.apc-h{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.apc-h .ttl{font-weight:700;font-size:14.5px;flex:1;min-width:200px}
+.apc-t{display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:1px 7px;background:var(--chip)}
+.apc-t.jira{background:#e8f0fe;color:#1a56c4}
+.apc-why{font-size:12.5px;color:var(--muted);margin:6px 0 8px;line-height:1.45}
+.apc textarea{width:100%;min-height:120px;margin-top:6px;box-sizing:border-box}
+.apc .rc{margin:4px 0}
+.apc-a{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.apc-a .spacer{flex:1}
+.apc .msgs{max-height:420px;overflow:auto;border-top:1px solid var(--line);padding-top:8px}
+.apc-pend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--chip);font-size:13px}
+.apc-pend .bar{flex:1;min-width:120px;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.apc-pend .bar i{display:block;height:100%;background:var(--sel);transition:width 1s linear}
+.apc.done{opacity:.75}
+.apc-ph{border:1px dashed var(--line);border-radius:12px;padding:16px;color:var(--muted);font-size:13px;text-align:center}
+.pl-sec{margin:0 0 14px}.pl-sec h3{font-size:13px;margin:0 0 8px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.pl-list{display:flex;flex-direction:column;gap:8px}
+.pl-it{border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:8px 10px;background:var(--card,#fff);font-size:13px}
+.pl-it.failed{border-color:#f59e0b}
+.pl-tx{white-space:pre-wrap;margin:4px 0;max-height:7.5em;overflow:auto;color:var(--text,#111)}
+.pl-it textarea{width:100%;min-height:90px;box-sizing:border-box;font:inherit;margin:4px 0}
+.ap-empty{color:var(--muted);text-align:center;padding:30px 10px;font-size:13.5px}
+.apc-jk{font-size:12.5px;margin:2px 0}
+.apc-jk .rcp{cursor:pointer}
 .an{display:none;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px 16px 60px}
 body.view-an .an{display:block}
 /* ---------- Analiz: grafik rolleri (açık/koyu ayrı seçilmiş adımlar) ---------- */
@@ -311,6 +376,13 @@ body.view-an .an{display:block}
 .td-res button:hover{background:var(--chip)}
 .td-res button span{color:var(--muted);font-size:11px}
 .td-donehdr{border:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:600;text-align:left;padding:10px 4px 4px;cursor:pointer}
+
+/* Mobil: yazı alanına dokununca iOS/Android zoom yapmasın (16px altı yazı tipi zoom tetikler), panel sabit kalsın */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media (hover:none) and (pointer:coarse){
+  input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select{font-size:16px !important}
+  button,input,textarea,select,a{touch-action:manipulation}
+}
 </style>
 </head>
 <body>
@@ -321,9 +393,9 @@ body.view-an .an{display:block}
     <div class="sub" id="syncInfo">Mailler yükleniyor…</div>
   </div>
   <button class="btn sm toptoggle" id="topToggle" aria-expanded="false" title="Filtreleri ve aramayı göster / gizle"><span id="topToggleTxt">☰ Filtreler</span><span class="tdot"></span></button>
-  <div class="tabs" role="tablist"><button id="tabBoard" class="on" role="tab">Board</button><button id="tabAn" role="tab">📊 Analiz</button></div>
+  <div class="tabs" role="tablist"><button id="tabBoard" class="on" role="tab">Board</button><button id="tabAp" role="tab">✅ Onaylar<span class="apn" id="apCount"></span></button><button id="tabAn" role="tab">📊 Analiz</button></div>
   <div class="spacer"></div>
-  <input id="q" class="search" placeholder="Ara: marka, konu, kişi…">
+  <span class="qwrap" id="qWrap"><input id="q" class="search" placeholder="Ara: marka, konu, kişi…" autocomplete="off"><button type="button" class="qclear" id="qClear" title="Aramayı temizle (Esc)" aria-label="Aramayı temizle">×</button></span>
   <button class="btn" id="refreshBtn" title="Board'u yenile">Yenile</button>
   <button class="btn primary" id="syncBtn" title="Gmail'i şimdi tara">Şimdi tara</button>
 </header>
@@ -331,9 +403,15 @@ body.view-an .an{display:block}
 <div class="filters">
   <div class="fgroup" id="cmFilter"><span class="flabel">Client Manager</span></div>
   <div class="fgroup" id="pFilter"><span class="flabel">Öncelik</span></div>
+  <div class="fgroup" id="bFilter"><span class="flabel">Marka</span></div>
   <div class="fgroup"><button class="chip on" id="closedToggle">Kapananları göster</button><button class="chip" id="resetCols" title="Sütunları başlıklarından sürükleyerek yeniden sıralayabilirsin">Sütun sırasını sıfırla</button></div>
 </div>
 <main class="board" id="board" aria-busy="true"></main>
+<section class="ap" id="approvals" aria-label="Onaylar">
+  <div class="ap-head"><div><h2>Onaylar</h2><div class="sub" id="apSub">AI işleri hazırlar, sen tek tuşla onaylarsın. Onayladıktan sonra 15 sn içinde geri alabilirsin.</div></div><div class="spacer"></div><button class="btn sm" id="apReload">Yenile</button></div>
+  <div id="apPlan"></div>
+  <div id="apList"></div>
+</section>
 <section class="an" id="analytics" aria-label="Analiz">
   <div class="an-ctrl">
     <div class="fgroup"><span class="flabel">Tarih</span>
@@ -366,7 +444,7 @@ body.view-an .an{display:block}
   <button class="btn sm warn" id="selSend" title="Seçili kartların CM'lerine hatırlatmayı gönder">Hatırlatmayı gönder</button>
   <button class="btn sm" id="selClear">Seçimi temizle</button>
 </div>
-<div class="ov" id="ov"><div class="modal" id="modal"></div></div>
+<div class="ov" id="ov"><div class="modal" id="modal"></div><div class="peek" id="peek"></div></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -380,9 +458,12 @@ var HINT = {
   LATER:'Sonraya bıraktığın işler (yeni mesaj gelince normal akışa döner)',
   REMINDED:'Hatırlattın; CM 2 iş günü içinde dönmezse geri döner',
   WAITING_CM:'Marka yazdı, CM henüz dönmedi',
+  ACTION:'Cevapladın ama yapman gereken bir şey var (test, kontrol…) — sadece sen taşırsın, sen çıkarana kadar burada kalır',
   IN_PROGRESS:'CM cevapladı, iş ekiplerde',
   WAITING_CLIENT:'Biz dönüş yaptık, marka tarafında bekliyor',
-  JIRA:'Jira bildirimleri',
+  JIRA:'Jira: ekip henüz almadı (task beklemede, ekipten yorum yok)',
+  JIRA_WIP:'Jira: ekip üzerinde çalışıyor (task devam ediyor ya da ekip yorum yazdı)',
+  JIRA_DONE:'Jira: ekip ya da CM tamamladı. Sen Done\'a aldıysan kart kapanır',
   COMPLETED:'İş teslim / kapandı',
   FYI:'Takip et: davetler, geniş dağıtımdaki iş mailleri',
   INTERNAL:'Şirket içi genel duyurular',
@@ -390,7 +471,7 @@ var HINT = {
   DONE:'Okundu veya kapatıldı'
 };
 var AVC = ['#e5484d','#2f7cf6','#16a34a','#8b5cf6','#f59e0b','#0ea5a4','#db2777'];
-var S = { mine:false, unseenOnly:false, dragCol:null, openId:null, data:null, cms:new Set(), prios:new Set(), q:'', showClosed:true, sel:new Set(), lastClick:null, dragIds:null, newIds:new Set(), loaded:false, seen:{}, seenQ:{} };
+var S = { noJira:(function(){ try { return localStorage.getItem('mk_nojira')==='1'; } catch(e){ return false; } })(), mine:false, unseenOnly:false, dragCol:null, openId:null, data:null, cms:new Set(), prios:new Set(), brands:(function(){ try { return new Set(JSON.parse(localStorage.getItem('mk_brands')||'[]')); } catch(e){ return new Set(); } })(), q:'', showClosed:true, sel:new Set(), lastClick:null, dragIds:null, newIds:new Set(), loaded:false, seen:{}, seenQ:{} };
 var DEMO = (typeof google === 'undefined' || !google.script);
 
 // ---------- API ----------
@@ -402,7 +483,29 @@ function api(fn){
     r[fn].apply(r,args);
   });
 }
-function toast(t){var el=document.getElementById('toast');el.textContent=t;el.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(function(){el.style.display='none'},2800);}
+// ---------- Yazı kutuları içerik doldukça uzasın (cevap, Jira yorumu, task açıklaması…) ----------
+// AI metni kodla yazdığında 'input' olayı olmaz → value ayarlayıcısı da kutuyu büyütür; gizliyken yazılan kutu görünür olunca (ResizeObserver) büyür.
+function taGrow(t){
+  if (!t || !t.isConnected || t.dataset.nogrow || !t.offsetParent) return;
+  if (!t._h0) t._h0 = t.offsetHeight;                     // ilk görünen yükseklik = alt sınır
+  var max = Math.round(window.innerHeight * 0.75);
+  t.style.height = 'auto';
+  var h = Math.max(t._h0, t.scrollHeight + 2);
+  t.style.height = Math.min(h, max) + 'px';
+  t.style.overflowY = h > max ? 'auto' : 'hidden';
+}
+var TA_RO = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(function(es){ es.forEach(function(e){ var t=e.target; if (t.offsetParent && t._gv !== t.value.length + '|' + t.clientWidth){ t._gv = t.value.length + '|' + t.clientWidth; taGrow(t); } }); }) : null;
+function taWatch(t){ if (!t._watched && TA_RO){ t._watched = true; TA_RO.observe(t); } }
+(function(){
+  var d = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value'); if (!d || !d.set) return;
+  Object.defineProperty(HTMLTextAreaElement.prototype, 'value', { configurable:true, enumerable:d.enumerable,
+    get:function(){ return d.get.call(this); },
+    set:function(v){ d.set.call(this, v); var t=this; taWatch(t); requestAnimationFrame(function(){ t._gv=''; taGrow(t); }); } });
+})();
+document.addEventListener('input', function(e){ var t=e.target; if (t && t.tagName==='TEXTAREA'){ taWatch(t); taGrow(t); } });
+document.addEventListener('focusin', function(e){ var t=e.target; if (t && t.tagName==='TEXTAREA'){ taWatch(t); taGrow(t); } });
+window.addEventListener('resize', function(){ document.querySelectorAll('textarea').forEach(function(t){ if (t.style.height) taGrow(t); }); });
+function toast(t,ms){var el=document.getElementById('toast');el.textContent=t;el.style.display='block';clearTimeout(toast._t);toast._t=setTimeout(function(){el.style.display='none'},ms||2800);}
 // ---------- PANO OKUNMA DURUMU ----------
 // '' = görüldü · 'new' = hiç açılmadı · 'upd' = açıldıktan sonra yeni mesaj geldi (kendi mesajın sayılmaz)
 function unseenKind(c){
@@ -445,16 +548,9 @@ function gmailPopoutUrl(tid){
 }
 document.addEventListener('click', function(e){
   var a = e.target.closest && e.target.closest('a.gm-open'); if (!a) return;
-  if (!IS_IOS && !IS_ANDROID){
-    if (e.metaKey || e.ctrlKey || e.shiftKey) return;                 // Cmd/Ctrl+tık: normal sekmede tam Gmail
-    var pu = a.dataset.tid && gmailPopoutUrl(a.dataset.tid); if (!pu) return;
-    e.preventDefault();
-    var W = Math.min(1000, screen.availWidth - 80), H = Math.min(860, screen.availHeight - 80);
-    var L = (screen.availLeft || 0) + Math.round((screen.availWidth - W) / 2), T = (screen.availTop || 0) + Math.round((screen.availHeight - H) / 2);
-    var w = window.open(pu, 'mb_gmail_pop', 'popup=yes,width=' + W + ',height=' + H + ',left=' + L + ',top=' + T);
-    if (!w) window.open(a.getAttribute('href'), '_blank'); else try { w.focus(); } catch (x) {}
-    return;
-  }
+  // Masaüstü: normal Gmail sekmesi. Gmail'in "pop-out" penceresi sadece Gmail'in içinden (ana pencereye bağlı) açılabiliyor;
+  // dışarıdan açılınca ya boş kalıyor ya da tam Gmail'e yönlendiriyor. Bu yüzden linkin kendisi yeni sekmede açılır.
+  if (!IS_IOS && !IS_ANDROID) return;
   e.preventDefault();
   var subj = String(a.dataset.subj||'').replace(/^\s*((re|fw|fwd|ynt|ilt|yn|ile)\s*:\s*)+/i,'').trim();
   var copied = subj && copyText(subj);
@@ -537,6 +633,7 @@ function applyData(d, opts){
   var prevIds = S.data ? new Set(S.data.cards.map(function(c){return c.id})) : null;
   if (S.data) d.todos = mergeTodos(d.todos, S.data.todos);
   S.data = d;
+  try { apPlanRender(); } catch (e) {}
   if (d.seen) S.seen = Object.assign({}, d.seen, S.seenQ);
   if (prevIds) d.cards.forEach(function(c){ if(!prevIds.has(c.id)) S.newIds.add(c.id); });
   var ids = new Set(d.cards.map(function(c){return c.id}));
@@ -558,12 +655,24 @@ function buildFilters(){
   ub.title='Panoda henüz açmadığın ya da açtıktan sonra yeni mesaj gelen kartlar';
   ub.onclick=function(){ S.unseenOnly=!S.unseenOnly; buildFilters(); render(); };
   cmEl.appendChild(ub); updateUnseenChip();
-  S.data.cms.map(function(c){return c.name}).concat(['Atanmamış']).forEach(function(n){
+  // 🧩 Jira kartlarını tek tıkla gizle/göster (Jira sütunları da kalkar; tercih bu tarayıcıda hatırlanır)
+  var jN=S.data.cards.filter(function(c){ return isJiraCard(c) && !c.closed; }).length;
+  var jb=document.createElement('button'); jb.className='chip'+(S.noJira?' on':''); jb.id='noJiraChip';
+  jb.title=S.noJira?'Jira kartlarını tekrar göster':'Jira bildirim kartlarını ve Jira sütunlarını gizle';
+  jb.innerHTML=S.noJira?'🧩 Jira gizli'+(jN?' ('+jN+')':'')+' ×':'🧩 Jira\'yı gizle';
+  jb.onclick=function(){ S.noJira=!S.noJira; try { localStorage.setItem('mk_nojira', S.noJira?'1':'0'); } catch(e){} buildFilters(); render(); };
+  cmEl.appendChild(jb);
+  // Filtre: ekip üyelerine göre (KISI) ya da markalara göre (MARKA — account manager'lar için)
+  var groups = S.data.filterBy==='MARKA'
+    ? (function(){ var seen={}, out=[]; (S.data.brands||[]).concat(S.data.cards.filter(function(c){return !c.closed}).map(function(c){return c.brand})).forEach(function(b){ b=String(b||'').trim(); if(b && !seen[b.toLowerCase()]){ seen[b.toLowerCase()]=1; out.push(b); } }); return out.concat(['Markasız']); })()
+    : S.data.cms.map(function(c){return c.name}).concat(['Atanmamış']);
+  groups.forEach(function(n){
     var b=document.createElement('button'); b.className='chip'+(S.cms.has(n)?' on':'');
     b.innerHTML='<span class="av" style="background:'+cmColor(n)+';width:16px;height:16px;font-size:8px">'+esc(initials(n))+'</span>'+esc(n);
     b.onclick=function(){ S.cms.has(n)?S.cms.delete(n):S.cms.add(n); buildFilters(); render(); };
     cmEl.appendChild(b);
   });
+  buildBrandChips();
   [1,2,3,4,5].forEach(function(p){
     var b=document.createElement('button'); b.className='chip'+(S.prios.has(p)?' on':'');
     b.innerHTML='<span class="dot" style="background:'+PCOL[p]+'"></span>P'+p; b.title=PSHORT[p];
@@ -592,11 +701,82 @@ function updateUnseenChip(){
   var n=S.data.cards.filter(isUnseen).length;
   ub.innerHTML='<span class="av" style="background:var(--sel);width:16px;height:16px;font-size:9px">●</span>Yeni'+(n?' <b style="margin-left:2px">'+n+'</b>':'');
 }
+function filterKey(c){
+  if (S.data && S.data.filterBy==='MARKA'){
+    var b=String(c.brand||'').trim(); if(!b) return 'Markasız';
+    var hit=(S.data.brands||[]).filter(function(x){ return x.toLowerCase()===b.toLowerCase(); })[0];
+    return hit||b;
+  }
+  return c.cm||'Atanmamış';
+}
+// ============ MARKA FİLTRESİ ============
+// Markalar kartlardan toplanır (büyük/küçük harf farkı tek marka sayılır). Seçim tarayıcıda hatırlanır.
+function brandKey(b){ b=String(b||'').trim(); return b ? b.toLocaleLowerCase('tr-TR') : '__none__'; }
+function brandList(){
+  var m={};
+  ((S.data&&S.data.cards)||[]).forEach(function(c){ var k=brandKey(c.brand); var e=m[k]||(m[k]={k:k, name:k==='__none__'?'Markasız':String(c.brand).trim(), n:0, all:0}); e.all++; if(!c.closed) e.n++; });
+  return Object.keys(m).map(function(k){ return m[k]; }).sort(function(a,b){ if (a.k==='__none__') return 1; if (b.k==='__none__') return -1; return (b.n-a.n) || a.name.localeCompare(b.name,'tr'); });
+}
+function brandSave(){ try { localStorage.setItem('mk_brands', JSON.stringify(Array.from(S.brands))); } catch(e){} }
+function buildBrandChips(){
+  var el=document.getElementById('bFilter'); if(!el || !S.data) return;
+  el.querySelectorAll('.chip').forEach(function(n){ n.remove(); });
+  if (S.data.filterBy==='MARKA'){ el.style.display='none'; return; }   // markalar zaten üstteki grupta
+  el.style.display='';
+  var names={}; brandList().forEach(function(b){ names[b.k]=b.name; });
+  S.brands.forEach(function(k){
+    var b=document.createElement('button'); b.className='chip on'; b.title='Filtreden çıkar';
+    b.innerHTML='<span class="av" style="background:'+cmColor(names[k]||k)+';width:16px;height:16px;font-size:8px">'+esc(initials(names[k]||k))+'</span>'+esc(names[k]||k)+' ×';
+    b.onclick=function(){ S.brands.delete(k); brandSave(); buildBrandChips(); brandPopFill(); render(); };
+    el.appendChild(b);
+  });
+  var ab=document.createElement('button'); ab.className='chip'; ab.id='bfOpen';
+  ab.textContent=S.brands.size?'＋ Marka':'Marka seç ▾'; ab.title='Markaya göre filtrele';
+  ab.onclick=function(e){ e.stopPropagation(); brandPopToggle(ab); };
+  el.appendChild(ab);
+}
+function brandPop(){
+  var p=document.getElementById('bfPop'); if (p) return p;
+  p=document.createElement('div'); p.id='bfPop'; p.className='bf-pop';
+  p.innerHTML='<input type="search" id="bfQ" placeholder="Marka ara…" autocomplete="off"><div class="bf-list" id="bfList"></div><div class="bf-foot"><button id="bfClear">Temizle</button><button id="bfClose">Kapat</button></div>';
+  document.body.appendChild(p);
+  p.addEventListener('click', function(e){ e.stopPropagation(); });
+  p.querySelector('#bfQ').addEventListener('input', brandPopFill);
+  p.querySelector('#bfQ').addEventListener('keydown', function(e){
+    if (e.key==='Escape') p.classList.remove('show');
+    if (e.key==='Enter'){ var f=p.querySelector('.bf-list input'); if (f){ f.checked=!f.checked; f.dispatchEvent(new Event('change')); } }
+  });
+  p.querySelector('#bfClear').onclick=function(){ S.brands.clear(); brandSave(); buildBrandChips(); brandPopFill(); render(); };
+  p.querySelector('#bfClose').onclick=function(){ p.classList.remove('show'); };
+  document.addEventListener('click', function(){ p.classList.remove('show'); });
+  return p;
+}
+function brandPopFill(){
+  var p=document.getElementById('bfPop'); if(!p) return;
+  var q=String(p.querySelector('#bfQ').value||'').trim().toLocaleLowerCase('tr-TR');
+  var list=brandList().filter(function(b){ return !q || b.name.toLocaleLowerCase('tr-TR').indexOf(q)>=0; });
+  var box=p.querySelector('#bfList');
+  box.innerHTML=list.length ? list.map(function(b){ return '<label><input type="checkbox" value="'+esc(b.k)+'"'+(S.brands.has(b.k)?' checked':'')+'><span>'+esc(b.name)+'</span><span class="n" title="Açık iş / toplam">'+b.n+(b.all!==b.n?' / '+b.all:'')+'</span></label>'; }).join('') : '<div class="meta" style="padding:6px">Marka bulunamadı</div>';
+  box.querySelectorAll('input').forEach(function(x){ x.onchange=function(){ x.checked?S.brands.add(x.value):S.brands.delete(x.value); brandSave(); buildBrandChips(); render(); }; });
+}
+function brandPopToggle(btn){
+  var p=brandPop();
+  if (p.classList.contains('show')){ p.classList.remove('show'); return; }
+  p.querySelector('#bfQ').value=''; brandPopFill();
+  var r=btn.getBoundingClientRect();
+  p.style.top=Math.min(r.bottom+6, window.innerHeight-60)+'px';
+  p.style.left=Math.max(12, Math.min(r.left, window.innerWidth-272))+'px';
+  p.classList.add('show');
+  if (window.matchMedia('(pointer:fine)').matches) p.querySelector('#bfQ').focus();
+}
+function isJiraCard(c){ return /(^|,)JIRA(,|$)/.test(String(c.flags||'')) || /^JIRA/.test(String(c.status||'')); }
 function visible(c){
+  if (S.noJira && c.id!==S.openId && isJiraCard(c)) return false;
   if (S.unseenOnly && !isUnseen(c) && c.id!==S.openId) return false;     // açık kart gezinirken kaybolmasın
   if (S.mine && !c.recentMine) return false;
-  if (S.cms.size && !S.cms.has(c.cm||'Atanmamış')) return false;
+  if (S.cms.size && !S.cms.has(filterKey(c))) return false;
   if (S.prios.size && !S.prios.has(c.priority)) return false;
+  if (S.brands.size && S.data.filterBy!=='MARKA' && !S.brands.has(brandKey(c.brand))) return false;
   if (!S.showClosed && c.closed) return false;
   if (S.q){
     var hay=(c.title+' '+c.subject+' '+c.brand+' '+c.cm+' '+c.summary+' '+c.participants).toLowerCase();
@@ -726,6 +906,7 @@ function render(){
   var snap = S.loaded ? captureScroll() : null;
   board.innerHTML='';
   orderedColIds().forEach(function(id){
+    if (S.noJira && /^JIRA/.test(id)) return;   // Jira gizliyken Jira sütunları da görünmesin
     if (id==='TIMELINE') renderTimelineCol(board);
     else if (id==='TODO') renderTodoCol(board);
     else { var st=S.data.statuses.find(function(s){return s.id===id}); if (st) renderStatusCol(board, st); }
@@ -735,6 +916,16 @@ function render(){
   S.loaded = true;
   updateSelBar();
   if (typeof updateTopDot==='function') updateTopDot();
+  updateNavPos();
+}
+// Kart penceresi açıkken board yenilenirse (yeni mail, durum değişikliği) üstteki "x / N" ve ‹ › butonları da güncellensin
+function updateNavPos(){
+  if (!S.openId) return;
+  var c=cardById(S.openId), el=document.querySelector('#modal .navpos'); if (!c || !el) return;
+  var nav=colNav(c);
+  el.textContent=(nav.i+1)+' / '+nav.list.length+' · '+(nav.key==='TIMELINE'?'En Güncel':statusName(nav.key||c.status));
+  var pv=document.getElementById('mPrev'), nx=document.getElementById('mNext');
+  if (pv) pv.disabled=!(nav.i>0); if (nx) nx.disabled=!(nav.i<nav.list.length-1);
 }
 
 // ---------- YAPILACAKLAR (kişisel hatırlatıcı listesi; mail kartlarından bağımsız, istenirse bir maile bağlanır) ----------
@@ -894,7 +1085,7 @@ function cardEl(c, colCards, timeline){
     '<div class="title">'+esc(c.title||c.subject)+'</div>'+
     '<div class="sum">'+esc(c.summary)+'</div>'+
     '<div class="foot"><span class="av" style="background:'+cmColor(c.cm)+'">'+esc(initials(c.cm))+'</span><span>'+esc(c.cm||'Atanmamış')+'</span>'+
-    '<span title="Mesaj sayısı">✉ '+c.msgCount+'</span>'+(c.remindedAt?'<span title="CM\'e hatırlatıldı">🔔 '+esc(fmtDate(c.remindedAt))+'</span>':'')+
+    '<span title="Mesaj sayısı">✉ '+c.msgCount+'</span>'+(plOf(c.id).length?'<span title="Planlı Jira yorumu: '+esc(plOf(c.id).map(function(p){ return p.key+' · '+plFmt(p.at); }).join(', '))+'">🕒 planlı'+(plOf(c.id).length>1?' ×'+plOf(c.id).length:'')+'</span>':'')+(c.remindedAt?'<span title="CM\'e hatırlatıldı">🔔 '+esc(fmtDate(c.remindedAt))+'</span>':'')+
     '<span class="age'+(late?' late':'')+(CM_WAIT.indexOf(c.status)>=0&&sinceInfo(c).cls?' '+sinceInfo(c).cls:'')+'" title="Son mesaj: '+esc(fmtDate(c.lastDate))+'">'+(late?'⏰ ':'')+esc(a.t)+(wbd?' · '+wbd+' iş g.':'')+'</span></div>';
   // Shift + tık (kart ya da kutucuk): son seçilen karttan buna kadar aynı sütundaki tüm kartları seç
   var rangeSel=function(){
@@ -1006,10 +1197,27 @@ function remind(ids, mode, text){
 }
 
 // ---------- DETAIL ----------
+// Kart penceresinde ← → gezinme, kartı AÇTIĞIN sütunun sırasıyla devam eder. Gezinirken bir kartın durumu değişse de
+// (ör. cevap gönderince Hemen Cevapla → İş Devam Ediyor) aynı sütunda kalırsın; Done'a giden kartlar atlanır,
+// sütuna sonradan düşen kartlar listenin sonuna eklenir. Pencere kapanınca sıfırlanır.
 function colNav(c){
-  var list=S.navTimeline ? timelineCards() : visibleCardsIn(c.status); var i=list.findIndex(function(x){return x.id===c.id});
+  var key=S.navTimeline ? 'TIMELINE' : null;
+  if (!S.navCtx || (S.navCtx.ids.indexOf(c.id)<0)){
+    key=key || c.status;
+    var fresh=key==='TIMELINE' ? timelineCards() : visibleCardsIn(key);
+    if (!fresh.some(function(x){return x.id===c.id;})) fresh=[c];
+    S.navCtx={key:key, ids:fresh.map(function(x){return x.id;})};
+  }
+  var ctx=S.navCtx, now=ctx.key==='TIMELINE' ? timelineCards() : visibleCardsIn(ctx.key);
+  now.forEach(function(x){ if (ctx.ids.indexOf(x.id)<0) ctx.ids.push(x.id); });
+  // Listede sadece şu an bu sütunda duran kartlar + açık kart kalır. Durumunu değiştirdiğin / cevapladığın kart sütundan çıkınca
+  // açıkken yerinde durur, başka karta geçince listeden düşer (sayı her zaman sütunla aynı).
+  var live={}; now.forEach(function(x){ live[x.id]=1; });
+  ctx.ids=ctx.ids.filter(function(id){ return live[id] || id===c.id || id===S.openId; });
+  var list=ctx.ids.map(cardById).filter(function(x){ return !!x; });
+  var i=list.findIndex(function(x){return x.id===c.id});
   if (i<0){ list=[c]; i=0; }
-  return {list:list, i:i};
+  return {list:list, i:i, key:ctx.key};
 }
 // ---------- MOBİL: kart açıkken sağa/sola kaydırarak önceki/sonraki kart ----------
 // Kart parmağı takip eder; bırakınca hemen kayar, yeni kart içeriden kayarak gelir (konuşma yüklenirken iskelet görünür).
@@ -1098,6 +1306,7 @@ function stepCard(dir){
 }
 function openCard(id){
   var c=cardById(id); if(!c) return;
+  peekHide();
   S.openId=id;
   var nk=unseenKind(c) || (S.newIds.has(c.id)?'new':'');
   S.openNew={id:c.id, kind:nk, prev:S.seen[c.id]||''};   // görüldü işaretlenmeden önceki durum (pencerede gösterilir)
@@ -1110,11 +1319,12 @@ function openCard(id){
   var cmOpts='<option value="">Atanmamış</option>'+S.data.cms.map(function(x){return '<option value="'+esc(x.email)+'"'+(x.email===c.cmEmail?' selected':'')+'>'+esc(x.name)+'</option>'}).join('');
   var isStale = c.status==='STALE';
   m.innerHTML =
-    '<div class="m-top" style="--pc:'+PCOL[c.priority]+'"><span class="pill">'+esc(PSHORT[c.priority])+'</span>'+(c.brand?'<span class="brand">'+esc(c.brand)+'</span>':'')+
-      '<span class="nav"><button class="btn sm" id="mPrev" title="Önceki (←)"'+(nav.i>0?'':' disabled')+'>‹</button><span class="navpos">'+(nav.i+1)+' / '+nav.list.length+' · '+esc(statusName(c.status))+'</span><button class="btn sm" id="mNext" title="Sonraki (→)"'+(nav.i<nav.list.length-1?'':' disabled')+'>›</button></span>'+
+    '<div class="m-top" style="--pc:'+PCOL[c.priority]+'">'+(S.backFrom&&S.backFrom.brand===c.id?'<button class="btn sm" id="mBack" title="Geldiğin Jira kartına dön">← Jira kartı</button>':'')+'<span class="pill">'+esc(PSHORT[c.priority])+'</span>'+(c.brand?'<span class="brand">'+esc(c.brand)+'</span>':'')+
+      '<span class="nav"><button class="btn sm" id="mPrev" title="Önceki (←)"'+(nav.i>0?'':' disabled')+'>‹</button><span class="navpos">'+(nav.i+1)+' / '+nav.list.length+' · '+esc(nav.key==='TIMELINE'?'En Güncel':statusName(nav.key||c.status))+'</span><button class="btn sm" id="mNext" title="Sonraki (→)"'+(nav.i<nav.list.length-1?'':' disabled')+'>›</button></span>'+
       (c.status!=='DONE'?'<button class="btn sm mdone-top" id="mDoneTop" title="Done\'a al, sıradakini aç">✓ Done</button>':'')+
       '<button class="x" id="mClose" aria-label="Kapat">×</button></div>'+
     '<h2>'+esc(c.title||c.subject)+'</h2><div class="m-subj">✉ '+esc(c.subject)+'</div>'+
+    (/(^|,)JIRA(,|$)/.test(String(c.flags||'')) && /\b[A-Z][A-Z0-9]{1,14}-\d{1,7}\b/.test(c.subject||'') ? '<div class="jst" id="mJst"><span class="meta">🧩 Jira durumu</span><select id="mJstSel" disabled><option>yükleniyor…</option></select><span class="meta" id="mJstInfo"></span></div>' : '')+
     (nk?'<div class="m-new"><span class="pill new">'+(nk==='upd'?'Yeni mesaj':'Yeni')+'</span></div>':'')+
     '<div class="ctrls">'+
       '<label>Durum<select id="mStatus">'+stOpts+'</select></label>'+
@@ -1122,6 +1332,9 @@ function openCard(id){
       '<label>Client Manager<select id="mCm">'+cmOpts+'</select></label>'+
       '<span class="spacer"></span>'+
       '<button class="btn" id="mTodo" title="Bu maile bağlı hatırlatıcı ekle (Yapılacaklar)">⏰ Hatırlatıcı</button>'+
+      '<button class="btn" id="mWrite" title="Cevabı kendin yaz, alıcıları seç">✍️ Cevap yaz</button>'+
+      (/(^|,)JIRA(,|$)/.test(String(c.flags||'')) && /\b[A-Z][A-Z0-9]{1,14}-\d{1,7}\b/.test(c.subject||'') ? '<button class="btn" id="mBrand" title="Jira\'daki son durumu ilgili marka mailine cevap olarak hazırla">↩️ Markaya dön</button><button class="btn" id="mNewMail" title="Bu Jira işiyle ilgili markaya yeni bir mail (yeni konu) yaz">📨 Yeni mail</button>' : '')+
+      '<button class="btn" id="mJira" title="İşi ekibe iletmek için Jira task başlığı ve açıklaması hazırla">🧩 Jira metni</button>'+
       '<button class="btn" id="mAi" title="Yazı avatarınla bu maile cevap taslağı yaz">✨ AI ile cevap</button>'+
       (c.status!=='DONE'?'<button class="btn" id="mDone" title="Done\'a al, sıradakini aç (Boşluk tuşu)">✓ Done <span style="opacity:.55;font-size:10.5px;border:1px solid currentColor;border-radius:4px;padding:0 4px;margin-left:2px">Space</span></button>':'')+
       '<a class="btn primary gm-open" data-tid="'+esc(c.id)+'" data-subj="'+esc(c.subject)+'" href="'+esc(c.link)+'" target="_blank" rel="noopener" style="text-decoration:none">Gmail\'de aç ↗</a>'+
@@ -1138,11 +1351,47 @@ function openCard(id){
       '<div class="box"><h4>CM ne dedi</h4><p>'+esc(c.cmResponse||'—')+'</p></div>'+
       '<div class="box full"><h4>Sıradaki adım</h4><p>'+esc(c.nextAction||'—')+'</p></div>'+
     '</div>'+
-    ('<div class="box full" id="mReplyBox" style="margin-bottom:12px'+(c.status==='MY_REPLY' || c.suggestedReply ? '' : ';display:none')+'"><h4>Önerilen cevap taslağı</h4>'+
-      '<div class="ai-row"><input id="mAiHint" placeholder="Not (opsiyonel): ör. onayla, Cuma teslim edeceğiz" autocomplete="off"><button class="btn sm" id="mAiGo">✨ '+(c.suggestedReply?'Yeniden yaz':'AI ile yaz')+'</button></div>'+
-      '<textarea id="mReply" placeholder="'+(c.status==='MY_REPLY'?'Taslak hazırlanıyor ya da yok — ✨ ile yazdır':'✨ AI ile yaz\'a bas')+'">'+esc(c.suggestedReply||'')+'</textarea>'+
-      '<div class="meta" style="margin-top:6px;white-space:pre-line">'+(S.data.signatureText?'İmzan taslağın altına otomatik eklenecek:\n<span style="opacity:.75">'+esc(S.data.signatureText)+'</span>':'Gmail\'de tanımlı imzan taslağa otomatik eklenecek.')+'</div>'+
-      '<div style="margin-top:8px;display:flex;gap:8px"><button class="btn primary" id="mDraft">Gmail\'de taslak oluştur</button><button class="btn" id="mCopy">Kopyala</button></div></div>')+
+    (String(c.flags||'').indexOf('MEETING_NOTES')>=0 && !c.closed ? '<div class="box full mtg" id="mMtg" style="margin-bottom:12px"><h4>📋 Toplantı notunu BIZ katılımcılarına ilet</h4><div class="rc" id="mMtgRc"><span class="meta">Katılımcılar takvimden bulunuyor…</span></div><div class="meta" id="mMtgInfo" style="margin:2px 0 8px"></div><button class="btn primary" id="mMtgGo" disabled>↪ İlet</button></div>' : '')+
+    '<div class="box full" id="mJiraBox" style="margin-bottom:12px;display:none"><h4>Jira</h4>'+
+      '<div class="jc" id="mJiraConn" style="display:none"></div>'+
+      '<div class="ai-row"><input id="mJiraHint" placeholder="Not (opsiyonel): ör. SM ekibine, Perşembe yayına girmeli" autocomplete="off"><button class="btn sm" id="mJiraGo">🧩 Hazırla</button></div>'+
+      ['SM','Google'].map(function(t){ return '<div class="jt" data-team="'+t+'"><div class="jt-h">'+(t==='SM'?'📱 SM ekibi':'🔎 Google ekibi')+'<span class="jt-r"></span></div>'+
+        '<div class="jr"><input id="mJiraTitle'+t+'" placeholder="Başlık"><button class="btn sm" data-copy="mJiraTitle'+t+'">Kopyala</button></div>'+
+        '<textarea id="mJiraBody'+t+'" placeholder="Yeni task açacaksan yukarıdaki 🧩 Hazırla\'ya bas ya da kendin yaz. [[E2]] yazdığın yere o görsel açıklamanın içine gömülür." style="min-height:140px"></textarea>'+
+        '<div class="jx-row" style="margin-top:6px"><input class="jx-at" data-ta="mJiraBody'+t+'" list="jxPeopleList" placeholder="@ Kişi etiketle (açıklamaya eklenir, Jira\'da bildirim gider)" autocomplete="off"></div>'+
+        '<div style="margin-top:6px"><button class="btn primary sm" data-copy="mJiraBody'+t+'">Açıklamayı kopyala</button></div>'+
+        '<div class="jx" data-team="'+t+'"><div class="jx-lbl">Jira\'ya gönder</div>'+
+          '<div class="jx-att" data-team="'+t+'"></div>'+
+          '<div class="jx-row"><input class="jx-proj" list="jxProjList" placeholder="Proje (ör. GRPADS)" autocomplete="off"><button class="btn primary sm jx-go">➕ Yeni task aç</button></div>'+
+          '<div class="jx-res"></div><div class="jx-ok" style="display:none"></div>'+
+          '</div></div>'; }).join('')+['SM','Google'].map(function(t){ return '<div class="jt jcm" id="mJcBox'+t+'" data-team="'+t+'"><div class="jt-h">💬 Mevcut task\'e yorum · '+(t==='SM'?'SM ekibi':'Google ekibi')+' <span class="meta">(gerekmiyorsa boş bırak)</span></div>'+
+        '<div class="jx-row"><input id="mJcKey'+t+'" list="jxKeyList" placeholder="1) '+t+' task\'ini seç: GRPADS-2219 ya da başlıktan ara" autocomplete="off"><button class="btn sm" id="mJcPick'+t+'">Seç</button></div>'+
+        '<div class="jx-res" id="mJcInfo'+t+'"></div>'+
+        '<div id="mJcStep2'+t+'" style="display:none;margin-top:8px">'+
+          '<div class="ai-row"><input id="mJcHint'+t+'" placeholder="2) Not (opsiyonel): ör. bütçeyi 20 bin yapalım" autocomplete="off"><button class="btn sm" id="mJcGen'+t+'">✨ Durumu incele, yorum hazırla</button></div>'+
+          '<div class="jx-res" id="mJcState'+t+'"></div>'+
+          '<div class="rc" id="mJcPeople'+t+'" style="margin-top:6px"></div>'+
+          '<textarea id="mJcText'+t+'" placeholder="Yorumu yaz ya da ✨ ile hazırlat. @Ad Soyad etiketleri Jira\'da bildirim gönderir. [[E2]] yazdığın yere o görsel yorumun içine gömülür." style="min-height:110px"></textarea>'+
+          '<div class="jx-att" id="mJcAtt'+t+'"></div>'+
+          '<div class="jx-row" style="margin-top:6px"><input class="jx-at" data-ta="mJcText'+t+'" list="jxPeopleList" placeholder="@ Başka birini etiketle (isim yaz)" autocomplete="off"><button class="btn primary sm" id="mJcSend'+t+'">💬 Yorum olarak yaz</button><button class="btn sm" id="mJcPlan'+t+'" title="Yorumu ileri bir saatte Jira\'ya yazdır">🕒 Planla</button></div>'+
+          '<div class="jx-ok" id="mJcPlanBox'+t+'" style="display:none"></div>'+
+          '<div class="jx-ok" id="mJcOk'+t+'" style="display:none"></div>'+
+        '</div></div>'; }).join('')+
+      '<datalist id="jxProjList"></datalist><datalist id="jxKeyList"></datalist><datalist id="jxPeopleList"></datalist></div>'+
+    '<div class="box full" id="mPlanList" style="margin-bottom:12px;display:none"></div>'+('<div class="box full" id="mReplyBox" style="margin-bottom:12px'+(c.status==='MY_REPLY' || c.suggestedReply ? '' : ';display:none')+'"><h4>Cevap</h4>'+
+      (function(){ var k=(String(c.subject||'').match(/\b([A-Z][A-Z0-9]{1,14}-\d{1,7})\b/)||[])[1]; return k ? '<div class="rmode" id="mRMode"><button data-m="jira" class="on">🧩 Jira\'ya yorum ('+esc(k)+')</button><button data-m="mail">✉️ Maile cevap</button>'+(/(^|,)JIRA(,|$)/.test(String(c.flags||''))?'<button data-m="new">📨 Yeni mail</button>':'')+'</div><div class="rc" id="mRJira" style="display:none"></div>'+(/(^|,)JIRA(,|$)/.test(String(c.flags||''))?'<div class="rloop" id="mRLoop" style="display:none"><span class="meta">Hangi maile:</span><select id="mRLoopSel"><option value="">Mailler yükleniyor…</option></select><div class="meta" id="mRLoopInfo"></div><div class="rx" id="mRExtra"></div></div>':'') : ''; })()+
+      '<div id="mNewBox" style="display:none"><div class="meta" id="mNInfo" style="margin:4px 0">Markaya bu Jira işiyle ilgili YENİ bir mail (yeni konu) yazarsın.</div>'+
+        '<div class="rc" id="mNRc"><span class="meta">Alıcılar yükleniyor…</span></div>'+
+        '<div class="jx-row" style="margin:6px 0"><input id="mNSubj" placeholder="Konu (ör. Örnek Moda x BIZ - Extra 15 Install Kampanyaları)" autocomplete="off" style="flex:1"></div>'+
+        '<div class="rx" id="mNExtra" style="margin-bottom:6px"></div>'+
+        '<div class="ai-row"><input id="mNHint" placeholder="Not (opsiyonel): ör. yayına aldık, önizleme linklerini paylaş" autocomplete="off"><button class="btn sm" id="mNAi">✨ Jira\'ya bakıp yaz</button></div>'+
+        '<textarea id="mNText" placeholder="Mail metni. ✨ ile Jira task(lar)ından hazırlatabilirsin."></textarea>'+
+        '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="mNDraft">Gmail\'de taslak oluştur</button><button class="btn warn" id="mNSend">Gönder</button></div>'+
+        '<div class="jx-ok" id="mNOk" style="display:none"></div></div>'+
+      '<div class="rc" id="mRcpt"><span class="meta">Alıcılar yükleniyor…</span></div>'+
+      '<div class="ai-row"><input id="mAiHint" placeholder="Not (opsiyonel): ör. onayla, Cuma teslim edeceğiz" autocomplete="off"><button class="btn sm" id="mAiGo">✨ '+(c.suggestedReply?'Yeniden yaz':'AI ile yaz')+'</button></div>'+(/(^|,)JIRA(,|$)/.test(String(c.flags||''))?'':'<div class="rx" id="mRJx" style="margin:-2px 0 8px"></div>')+
+      '<textarea id="mReply" placeholder="Cevabını yaz ya da ✨ AI ile yazdır">'+esc(c.suggestedReply||'')+'</textarea>'+
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" id="mDraft">Gmail\'de taslak oluştur</button><button class="btn warn" id="mSend">Gönder</button><button class="btn" id="mPlan" style="display:none" title="Yorumu ileri bir saatte Jira\'ya yazdır">🕒 Planla</button><button class="btn" id="mCopy">Kopyala</button></div><div class="jx-ok" id="mRJOk" style="display:none"></div><div class="jx-ok" id="mPlanBox" style="display:none"></div></div>')+
     '<div class="meta">Son gönderen: <b>'+esc(c.lastSender)+'</b> · '+esc(fmtDate(c.lastDate))+(function(){ var si=sinceInfo(c); return si.t?' · <span class="since '+si.cls+'" title="'+(si.cls?'CM\'den cevap bekleniyor · '+waitDays(c.lastDate)+'. iş günü':'Son mesajdan bu yana')+'">'+esc(si.t)+' önce</span>':''; })()+' · '+c.msgCount+' mesaj<br>Katılımcılar: '+esc(c.participants)+'<br>Neden bu öncelik: '+esc(c.priorityReason||'—')+(c.flags?' <span style="opacity:.6">('+esc(c.flags)+')</span>':'')+'</div>'+
     '<div style="margin-top:12px"><button class="btn" id="mThread">Konuşmanın tamamını göster</button></div><div class="msgs" id="mMsgs"></div>';
 
@@ -1160,28 +1409,687 @@ function openCard(id){
   var rd=document.getElementById('mRemDraft'); if(rd) rd.onclick=function(){ var t=document.getElementById('mRemText').value; advanceAfter(c,function(){ remind([c.id],'draft',t); }); };
   var rs=document.getElementById('mRemSend');
   if(rs) rs.onclick=function(){ if(!rs.dataset.confirm){ rs.dataset.confirm='1'; rs.textContent='Emin misin? '+c.cm+'\'e gönder'; return; } var t=document.getElementById('mRemText').value; advanceAfter(c,function(){ remind([c.id],'send',t); }); };
+  // ---------- Toplantı notu: tek tuşla ilet ----------
+  if (document.getElementById('mMtg')){
+    var M={sel:[], opts:[], cid:c.id};
+    var mtgDraw=function(){
+      var box=document.getElementById('mMtgRc'); if(!box) return;
+      box.innerHTML=M.opts.map(function(o){ var on=M.sel.indexOf(o.email)>=0; return '<button class="rcp '+(on?'to':'')+'" data-e="'+esc(o.email)+'" title="'+esc(o.email)+'"><b>'+(on?'✓':'+')+'</b> '+esc(o.name||o.email)+(o.prev?' <i>önceki</i>':'')+'</button>'; }).join('')+'<input id="mMtgAdd" placeholder="e-posta ekle" autocomplete="off">';
+      box.querySelectorAll('.rcp').forEach(function(bt){ bt.onclick=function(){ var e=bt.dataset.e, i=M.sel.indexOf(e); if(i>=0) M.sel.splice(i,1); else M.sel.push(e); mtgDraw(); }; });
+      var inp=document.getElementById('mMtgAdd'); inp.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===','){ ev.preventDefault(); var v=inp.value.trim().toLowerCase().replace(/[,;]$/,''); if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ if(!M.opts.some(function(o){return o.email===v})) M.opts.push({email:v,name:''}); if(M.sel.indexOf(v)<0) M.sel.push(v); mtgDraw(); setTimeout(function(){ var n=document.getElementById('mMtgAdd'); if(n) n.focus(); },0); } else toast('Geçerli bir e-posta yaz'); } };
+      var go=document.getElementById('mMtgGo'); go.disabled=!M.sel.length; go.textContent='↪ İlet'+(M.sel.length?' ('+M.sel.length+' kişi)':'');
+    };
+    api('getMeetingAttendees', c.id).then(function(r){
+      if (S.openId!==M.cid) return;
+      M.opts=(r.sem||[]).slice(); M.sel=M.opts.map(function(o){return o.email});
+      (r.previous||[]).forEach(function(e){ if(!M.opts.some(function(o){return o.email===e})) M.opts.push({email:e,name:'',prev:true}); });
+      var info=document.getElementById('mMtgInfo');
+      if (info) info.textContent = r.eventFound ? ('Takvim daveti: '+r.eventTitle+(r.others?' · '+r.others+' dış katılımcı listede yok':'')) : 'Takvimde eşleşen davet bulunamadı — kişileri seç ya da e-posta ekle.';
+      mtgDraw();
+    }).catch(function(e){ var box=document.getElementById('mMtgRc'); if(box) box.innerHTML='<span class="meta">Katılımcılar alınamadı: '+esc(e.message||e)+'</span>'; M.opts=[]; mtgDraw(); });
+    document.getElementById('mMtgGo').onclick=function(){
+      var go=this; if(!M.sel.length) return; go.disabled=true; go.textContent='İletiliyor…';
+      var cc=c;
+      api('forwardMeetingNotes', cc.id, M.sel).then(function(r){
+        toast('Toplantı notu '+r.sent+' kişiye iletildi');
+        advanceAfter(cc,function(){ var x=cardById(cc.id); if(x){ x.status='DONE'; x.closed=true; } render(); });
+      }).catch(function(e){ toast('İletilemedi: '+(e.message||e)); go.disabled=false; go.textContent='↪ İlet ('+M.sel.length+' kişi)'; });
+    };
+  }
+  // ---------- Alıcılar: Kime / Cc seçimi (tık: Kime → Cc → çıkar) ----------
+  var R={to:[], cc:[], opts:[], loaded:false, cid:c.id, tid:(/(^|,)JIRA(,|$)/.test(String(c.flags||'')) && /\b[A-Z][A-Z0-9]{1,14}-\d{1,7}\b/.test(c.subject||'')) ? '' : c.id};   // tid: cevabın gideceği mail (Jira kartında seçilen marka maili)
+  var rcHtml=function(){
+    var box=document.getElementById('mRcpt'); if(!box) return;
+    var all=R.opts.slice(); [].concat(R.to,R.cc).forEach(function(e){ if(!all.some(function(o){return o.email===e})) all.push({email:e,name:'',role:''}); });
+    box.innerHTML=all.map(function(o){
+      var st=R.to.indexOf(o.email)>=0?'to':(R.cc.indexOf(o.email)>=0?'cc':'');
+      return '<button class="rcp '+st+'" data-e="'+esc(o.email)+'" title="'+esc(o.email)+' · tıkla: Kime → Cc → çıkar"><b>'+(st==='to'?'Kime':st==='cc'?'Cc':'+')+'</b> '+esc(o.name||o.email)+(o.role==='EXTERNAL'?' <i>dış</i>':'')+'</button>';
+    }).join('')+'<input id="mRcAdd" placeholder="e-posta ekle" autocomplete="off">';
+    box.querySelectorAll('.rcp').forEach(function(b){ b.onclick=function(){ var e=b.dataset.e, i=R.to.indexOf(e), j=R.cc.indexOf(e);
+      if(i>=0){ R.to.splice(i,1); R.cc.push(e); } else if(j>=0){ R.cc.splice(j,1); } else R.to.push(e); rcHtml(); }; });
+    var inp=document.getElementById('mRcAdd'); inp.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===','){ ev.preventDefault(); var v=inp.value.trim().toLowerCase().replace(/[,;]$/,''); if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ if(R.to.indexOf(v)<0&&R.cc.indexOf(v)<0) R.to.push(v); rcHtml(); setTimeout(function(){ var n=document.getElementById('mRcAdd'); if(n) n.focus(); },0); } else toast('Geçerli bir e-posta yaz'); } };
+  };
+  var loadRcpt=function(){
+    if (R.loaded || R.loading) return;
+    if (!R.tid){ var bx0=document.getElementById('mRcpt'); if(bx0) bx0.innerHTML='<span class="meta">Önce cevabın gideceği maili seç</span>'; return; }
+    R.loading=true; var tid0=R.tid;
+    api('getReplyRecipients', tid0).then(function(r){ if (S.openId!==R.cid || R.tid!==tid0) return; R.loading=false; R.to=r.to||[]; R.cc=r.cc||[]; R.opts=r.options||[]; R.loaded=true; rcHtml(); })
+      .catch(function(e){ var box=document.getElementById('mRcpt'); if(box) box.innerHTML='<span class="meta">Alıcılar alınamadı: '+esc(e.message||e)+'</span>'; R.loading=false; });
+  };
+  var RKEY=(String(c.subject||'').match(/\b([A-Z][A-Z0-9]{1,14}-\d{1,7})\b/)||[])[1]||'';
+  var RM={mode: RKEY ? 'jira' : 'mail', brief:null, loading:false};      // Jira bildirimi kartında varsayılan: Jira'ya yorum
+  var showBox=function(){ var box=document.getElementById('mReplyBox'); if(!box) return null; box.style.display=''; if (RM.mode==='mail') loadRcpt(); else if (typeof rmApply==='function') rmApply(); return box; };
+  if (document.getElementById('mReplyBox') && document.getElementById('mReplyBox').style.display!=='none' && RM.mode==='mail') loadRcpt();
+  var wb=document.getElementById('mWrite'); if (wb) wb.onclick=function(){ var box=showBox(); if(!box) return; box.scrollIntoView({block:'nearest', behavior:'smooth'}); var ta=document.getElementById('mReply'); setTimeout(function(){ ta.focus(); },150); };
+  var sendIt=function(mode, btn){
+    var t=document.getElementById('mReply').value;
+    if (!t.trim()) { toast('Önce cevabı yaz'); return; }
+    if (!R.tid) { toast('Önce cevabın gideceği maili seç'); return; }
+    if (!R.loaded) { toast('Alıcılar yükleniyor, bir saniye'); loadRcpt(); return; }
+    if (!R.to.length) { toast('En az bir "Kime" alıcısı seç'); return; }
+    if (btn.disabled) return;   // tek tık: onay sorulmadan gönderilir
+    var tid=R.tid;
+    if (mode!=='send'){
+      btn.disabled=true;
+      api('sendReply', tid, t, R.to, R.cc, mode).then(function(){ toast('Taslak Gmail\'de oluşturuldu'); })
+        .catch(function(e){ toast('Hata: '+(e.message||e), 6000); }).finally(function(){ btn.disabled=false; delete btn.dataset.confirm; btn.textContent='Gmail\'de taslak oluştur'; });
+      return;
+    }
+    // ⚡ Gönder: beklemeden — mail hemen konuşmaya eklenir, kutu temizlenir, kart/pencere serbest kalır (durum değiştirilebilir, sonraki karta geçilebilir).
+    // Gönderim arka planda sürer; gerçekten gidince (ya da gidemezse) ekranda bildirim çıkar.
+    var sentAt=Date.now(), cc=cardById(tid), title=(cc&&(cc.title||cc.subject))||'';
+    var snap=cc?{ status:cc.status, lastSender:cc.lastSender, lastSenderRole:cc.lastSenderRole, lastDate:cc.lastDate, recentMine:cc.recentMine, suggestedReply:cc.suggestedReply }:null;
+    var stAtSend=cc?cc.status:'';
+    var userMoved=function(k){ return k && k.status!==stAtSend; };   // gönderdikten sonra durumu sen değiştirdiysen AI/sunucu ezmesin
+    var mine={ id:'local-'+sentAt, from:'Ben', role:'⏳ gönderiliyor…', date:new Date(sentAt).toISOString(), text:t, images:[] };
+    var list=null;
+    var redraw=function(){ if (S.openId===c.id && list && document.getElementById('mMsgs')) renderThread(document.getElementById('mMsgs'), list); };
+    if (cc){ cc.suggestedReply=''; cc.lastDate=mine.date; cc.lastSender='Ben'; cc.lastSenderRole='ME'; cc.recentMine=true; render(); }
+    var ta0=document.getElementById('mReply'); if (ta0) ta0.value='';
+    if (tid!==c.id){ var ok0=document.getElementById('mRJOk'); if (ok0){ ok0.style.display=''; ok0.innerHTML='⏳ Marka mailine gönderiliyor: <b>'+esc(title)+'</b> — beklemene gerek yok.'; } }
+    if (S.openId===tid){
+      var prev=(S.threadMsgs && S.threadMsgs.id===c.id) ? S.threadMsgs.list : null;
+      var tb=document.getElementById('mThread'); if (tb) tb.style.display='none';
+      S.threadOpen=true;
+      list=[mine].concat(prev||[]); redraw();
+      if (!prev && cc) Detail.get(cc).then(function(d){ if (S.openId===c.id && mine.role.indexOf('⏳')<0){ list=d.messages||[]; } else if (S.openId===c.id){ list=[mine].concat(d.messages||[]); } redraw(); }).catch(function(){});
+      var mm=document.getElementById('mMsgs'); if (mm) mm.scrollIntoView({block:'start', behavior:'smooth'});
+    }
+    toast('⏳ Gönderiliyor… sen devam edebilirsin');
+    api('sendReply', tid, t, R.to, R.cc, mode, sentAt).then(function(r){
+      mine.role='ME'; mine.from=r.from||'Ben'; mine.date=r.at||mine.date; redraw();
+      toast('✅ Mail gönderildi: '+title, 5000);
+      var k=cardById(tid);
+      if (k){ k.msgCount=(k.msgCount||1)+1; k.lastDate=r.at||k.lastDate; k.lastSender=r.from||'Ben'; k.lastMsgId=''; }
+      if (tid!==c.id && S.openId===c.id){ var ok2=document.getElementById('mRJOk'); if (ok2){ ok2.style.display=''; ok2.innerHTML='✅ Marka mailine gönderildi: <b>'+esc(title)+'</b>'; } }
+      if (k && r.card && r.card.status && !userMoved(k) && r.card.status!==k.status){ k.status=r.card.status; k.aiStatus=r.card.aiStatus; k.priorityReason=r.card.priorityReason; k.followUp=r.card.followUp; stAtSend=k.status; render(); if (S.openId===tid){ var se0=document.getElementById('mStatus'); if (se0) se0.value=k.status; } }
+      render();
+      // Cevabının içeriğine göre durum AI ile yeniden belirlenir — ama bu arada durumu sen değiştirdiysen seninki kalır
+      api('refreshAfterReply', tid, sentAt).then(function(card){
+        var k2=cardById(tid); if (!k2 || !card) return;
+        if (card.refreshDeferred){ toast('Durum bir sonraki taramada (en geç 10 dk) cevabına göre güncellenecek'); return; }
+        var moved=userMoved(k2), before=k2.status;
+        ['priorityReason','summary','clientAsk','cmResponse','nextAction','flags','title','msgCount','lastMsgId','lastDate'].concat(moved?[]:['status','aiStatus','priority','followUp','closed']).forEach(function(f){ if (card[f]!==undefined) k2[f]=card[f]; });
+        render();
+        if (S.openId===tid && !moved){ var se=document.getElementById('mStatus'); if (se) se.value=k2.status; }
+        if (!moved) toast(before!==k2.status ? 'Cevabına göre: '+statusName(k2.status)+(k2.priorityReason?' · '+k2.priorityReason:'') : 'Durum aynı kaldı: '+statusName(k2.status), 4000);
+      }).catch(function(){});
+    }).catch(function(e){
+      mine.role='⚠️ gönderilemedi'; redraw();
+      var k=cardById(tid); if (k && snap){ ['lastSender','lastSenderRole','lastDate','recentMine'].forEach(function(f){ k[f]=snap[f]; }); }
+      // Metin kaybolmasın: kart açıksa kutuya geri koy, değilse kartın önerilen cevabına yaz (açınca kutuda olur)
+      var ta=document.getElementById('mReply');
+      if (S.openId===c.id && ta && !ta.value.trim()){ ta.value=t; var rb=document.getElementById('mReplyBox'); if (rb) rb.style.display=''; }
+      else if (k) k.suggestedReply=t;
+      if (tid!==c.id && S.openId===c.id){ var ok3=document.getElementById('mRJOk'); if (ok3){ ok3.style.display=''; ok3.innerHTML='⚠️ Gönderilemedi: '+esc(e.message||e); } }
+      render();
+      toast('⚠️ Mail gönderilemedi ('+title+'): '+(e.message||e)+' — metin kartta duruyor, tekrar gönderebilirsin', 9000);
+    });
+  };
+  var sb=document.getElementById('mSend'); if (sb) sb.onclick=function(){ sendIt('send', sb); };
+  // 🧩 Jira metni: işi ekibe iletmek için başlık + açıklama (kopyala yapıştır)
+  var JIRA_SUBJ_KEY=(String(c.subject||'').match(/\b([A-Z][A-Z0-9]{1,14}-\d{1,7})\b/)||[])[1]||'';
+  var jiraOpen=function(){
+    var box=document.getElementById('mJiraBox'); if(!box) return;
+    var first=box.style.display==='none';
+    box.style.display=''; jiraCtxLoad(c.id); attLoad(c.id);
+    // AI (token harcar) kendiliğinden çalışmaz: task metni 🧩 Hazırla ile, yorum ✨ Durumu incele ile üretilir
+    if (JIRA_SUBJ_KEY){ var jc=document.getElementById('mJcBoxSM'); if(jc) jc.scrollIntoView({block:'nearest', behavior:'smooth'}); }
+    else box.scrollIntoView({block:'nearest', behavior:'smooth'});
+  };
+  var jiraRun=function(){
+    var box=document.getElementById('mJiraBox'), go=document.getElementById('mJiraGo'), top=document.getElementById('mJira'); if(!box) return;
+    box.style.display=''; box.scrollIntoView({block:'nearest', behavior:'smooth'});
+    if (go.disabled) return;
+    var cid=c.id, teams=['SM','Google'];
+    go.disabled=true; if(top) top.disabled=true; go.textContent='Hazırlanıyor…'; box.classList.add('ai-busy');
+    teams.forEach(function(t){ var bo=document.getElementById('mJiraBody'+t); bo.value=''; bo.placeholder='Metin hazırlanıyor…'; document.getElementById('mJiraTitle'+t).value=''; box.querySelector('.jt[data-team="'+t+'"]').classList.remove('off'); box.querySelector('.jt[data-team="'+t+'"] .jt-r').textContent=''; });
+    jiraCtxLoad(cid);
+    api('generateJiraText', cid, (document.getElementById('mJiraHint')||{}).value||'').then(function(r){
+      if (S.openId!==cid) return;
+      if (r.attachments){ ATT.list=r.attachments; ['SM','Google'].forEach(function(t){ attRender(document.getElementById('mJcAtt'+t)); }); }
+      (r.tasks||[]).forEach(function(k){ attRender(box.querySelector('.jx-att[data-team="'+k.team+'"]'), k.attach||[]); });
+      (r.tasks||[]).forEach(function(k){
+        var wrap=box.querySelector('.jt[data-team="'+k.team+'"]'); if(!wrap) return;
+        document.getElementById('mJiraTitle'+k.team).value=k.title||'';
+        var bo=document.getElementById('mJiraBody'+k.team); bo.value=k.body||''; bo.placeholder=k.relevant?'Açıklama':'Bu ekibe düşen bir iş yok';
+        wrap.classList.toggle('off', !k.relevant); wrap.querySelector('.jt-r').textContent=k.relevant?'':' · '+(k.reason||'ilgili değil');
+      });
+    }).catch(function(e){ toast('Hazırlanamadı: '+(e.message||e)); })
+      .finally(function(){ if (S.openId!==cid) return; box.classList.remove('ai-busy'); go.disabled=false; if(top) top.disabled=false; go.textContent='🧩 Yeniden hazırla'; });
+  };
+  var jb=document.getElementById('mJira'); if (jb) jb.onclick=jiraOpen;
+  var jg=document.getElementById('mJiraGo'); if (jg) jg.onclick=jiraRun;
+  var jh=document.getElementById('mJiraHint'); if (jh) jh.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); jiraRun(); } });
+  document.querySelectorAll('#mJiraBox [data-copy]').forEach(function(btn){ btn.onclick=function(){
+    var el=document.getElementById(btn.dataset.copy), v=el?el.value:''; if(!v.trim()){ toast('Önce metni hazırla'); return; }
+    var done=function(){ toast('Kopyalandı'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(v).then(done,function(){ if(copyText(v)) done(); else toast('Kopyalanamadı'); });
+    else if (copyText(v)) done(); else toast('Kopyalanamadı');
+  }; });
+
+  // 🔗 Jira bağlantısı: önerilen metni direkt task olarak aç ya da mevcut işe yorum yaz
+  var J={cid:null, ctx:null, loading:false, issue:null};
+  // @etiket: isim → Jira accountId (task'teki kişiler, projede atananlar, arama sonuçları)
+  var MEN={};
+  var menAdd=function(map){ Object.keys(map||{}).forEach(function(n){ if(n && map[n]) MEN[n]=map[n]; }); var dl=document.getElementById('jxPeopleList'); if(dl) dl.innerHTML=Object.keys(MEN).sort().map(function(n){ return '<option value="'+esc(n)+'"></option>'; }).join(''); };
+  var menUsed=function(txt){ var o={}; Object.keys(MEN).forEach(function(n){ if(String(txt||'').indexOf('@'+n)>=0) o[n]=MEN[n]; }); return o; };
+  var insertAtCaret=function(ta, str){ if(!ta) return; var a=ta.selectionStart||0, b=ta.selectionEnd||0, v=ta.value; if(document.activeElement!==ta && !v.trim()) { a=b=0; } else if (document.activeElement!==ta) { a=b=v.length; }
+    var pre=v.slice(0,a), add=(pre && !/\s$/.test(pre) ? ' ' : '')+str+' '; ta.value=pre+add+v.slice(b); ta.focus(); var pos=(pre+add).length; try{ ta.setSelectionRange(pos,pos); }catch(e){} };
+  // 📎 Mail ekleri: Jira task'ine / yorumuna yüklenecekleri seç (görseller + diğer dosyalar)
+  var ATT={list:null, loading:false};
+  var attSize=function(n){ n=Number(n)||0; return n>1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(n/1024))+' KB'; };
+  var attIcon=function(a){ return a.image?'🖼':(/pdf/.test(a.mime)?'📄':(/sheet|excel|csv/.test(a.mime)?'📊':(/video/.test(a.mime)?'🎬':(/zip|compressed/.test(a.mime)?'🗜':'📎')))); };
+  ATT.thumbs={}; ATT.thumbAsked={};
+  var attWhen=function(iso){ if(!iso) return ''; var d=new Date(iso); return ('0'+d.getDate()).slice(-2)+'.'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2); };
+  var ROLE_TR={EXTERNAL:'marka',CLIENT:'marka',CM:'CM',INTERNAL:'iç ekip',ME:'sen'};
+  var attRender=function(box, checkedIds){
+    if(!box) return;
+    var prev={}; box.querySelectorAll('input:checked').forEach(function(x){ prev[x.value]=1; });
+    if(!ATT.list || !ATT.list.length){ box.innerHTML=''; return; }
+    // Varsayılan: sadece güncel konunun ekleri (son mesajlar) + AI'ın seçtikleri. Eski konular / eski sürümler "diğer ekler"de.
+    var hidden=function(a){ return (a.older || a.recent===false) && !(checkedIds && checkedIds.indexOf(a.id)>=0) && !prev[a.id]; };
+    var olds=ATT.list.filter(hidden).length, groups=[], byNo={};
+    ATT.list.forEach(function(a){ var k=a.msgNo||0; if(!byNo[k]){ byNo[k]={a:a, items:[]}; groups.push(byNo[k]); } byNo[k].items.push(a); });
+    var showOld=box.classList.contains('att-showold');
+    var shown=ATT.list.filter(function(a){ return showOld || !hidden(a); }).length;
+    box.innerHTML='<div class="att-h"><span class="meta">📎 '+(shown?'Jira\'ya eklenecekleri seç':'Güncel konuda ek yok')+'</span>'+(olds?'<a href="#" class="att-old">'+(showOld?'sadece güncel ekleri göster':'eski konulardaki ekleri de göster ('+olds+')')+'</a>':'')+'</div>'+
+      groups.map(function(g){
+        var a0=g.a, sn=String(a0.snippet||'');
+        var vis=g.items.filter(function(a){ return showOld || !hidden(a); });
+        if(!vis.length) return '';
+        return '<div class="att-g"><div class="att-gh">✉ '+esc(attWhen(a0.date))+' · <b>'+esc(a0.from||'?')+'</b>'+(ROLE_TR[a0.role]?' ('+ROLE_TR[a0.role]+')':'')+(sn?' — “'+esc(sn.slice(0,110))+(sn.length>110?'…':'')+'”':'')+'</div><div class="att-gl">'+
+          vis.map(function(a){
+            var on = checkedIds ? checkedIds.indexOf(a.id)>=0 : !!prev[a.id];
+            var th=ATT.thumbs[a.id];
+            return '<label class="achip'+(a.older?' old':'')+'" title="'+esc(a.name+' · '+attSize(a.size))+'"><input type="checkbox" value="'+esc(a.id)+'"'+(on?' checked':'')+'>'+
+              (a.image ? '<span class="ath" data-id="'+esc(a.id)+'"'+(th?' style="background-image:url('+th+')"':'')+' title="Büyüt">'+(th?'':'🖼')+'</span>' : '<span class="aic">'+attIcon(a)+'</span>')+
+              '<span class="atn">'+esc(a.name)+'</span><em class="meta">'+attSize(a.size)+(a.image&&a.inline?' · mail içinde':'')+(a.older?' · eski sürüm':'')+'</em></label>';
+          }).join('')+'</div></div>';
+      }).join('');
+    var tg=box.querySelector('.att-old'); if(tg) tg.onclick=function(e){ e.preventDefault(); box.classList.toggle('att-showold'); attRender(box); };
+    box.querySelectorAll('.ath').forEach(function(t){ t.onclick=function(e){ e.preventDefault(); e.stopPropagation(); var src=ATT.thumbs[t.dataset.id]; if(src) attZoom(src); }; });
+    attThumbs();
+  };
+  var attZoom=function(src){
+    var z=document.getElementById('attZoom'); if(!z){ z=document.createElement('div'); z.id='attZoom'; z.onclick=function(){ z.style.display='none'; }; document.body.appendChild(z); }
+    z.innerHTML='<img src="'+src+'">'; z.style.display='flex';
+  };
+  var attThumbs=function(){
+    // Sadece ekranda görünen görsellerin önizlemesi, 5'erli gruplar halinde (tek seferde büyük yanıt hata veriyordu)
+    var onScreen={}; document.querySelectorAll('#mJiraBox .ath').forEach(function(t){ onScreen[t.dataset.id]=1; });
+    var need=(ATT.list||[]).filter(function(a){ return onScreen[a.id] && a.image && !ATT.thumbs[a.id] && !ATT.thumbAsked[a.id] && a.size<=1500000; });
+    if(!need.length) return;
+    need.forEach(function(a){ ATT.thumbAsked[a.id]=1; });
+    var paint=function(){ document.querySelectorAll('#mJiraBox .ath').forEach(function(t){ var src=ATT.thumbs[t.dataset.id]; if(src){ t.style.backgroundImage='url('+src+')'; t.textContent=''; } }); };
+    for (var q=0;q<need.length;q+=5){ (function(chunk){
+      api('getAttachmentThumbs', chunk.map(function(a){ return {id:a.id, mime:a.mime, size:a.size}; })).then(function(m){ Object.keys(m||{}).forEach(function(id){ ATT.thumbs[id]=m[id]; }); paint(); })
+        .catch(function(){ chunk.forEach(function(a){ delete ATT.thumbAsked[a.id]; }); });
+    })(need.slice(q,q+5)); }
+  };
+  var attSel=function(box, text){ if(!ATT.list) return []; var ids=[]; if(box) box.querySelectorAll('input:checked').forEach(function(x){ ids.push(x.value); });
+    // Metinde [[E2]] ile yerleştirilen görsel seçili olmasa da gönderilir (açıklamaya gömülür)
+    String(text||'').replace(/\[\[(E\d+)\]\]/gi, function(_, r){ ATT.list.forEach(function(a){ if (String(a.ref).toUpperCase()===r.toUpperCase() && ids.indexOf(a.id)<0) ids.push(a.id); }); return _; });
+    return ATT.list.filter(function(a){ return ids.indexOf(a.id)>=0; }); };
+  var attRenderAll=function(){ document.querySelectorAll('#mJiraBox .jx-att').forEach(function(b){ attRender(b); }); };
+  var attLoad=function(cid){
+    if(ATT.list || ATT.loading) return; ATT.loading=true;
+    api('getThreadAttachments', cid).then(function(list){ if(S.openId!==cid) return; if(!ATT.list){ ATT.list=list||[]; attRenderAll(); } })
+      .catch(function(){}).finally(function(){ ATT.loading=false; });
+  };
+  var attNote=function(r){ var t=''; if(r && r.uploaded) t+=' · 📎 '+r.uploaded+' ek yüklendi'; if(r && r.uploadErrors && r.uploadErrors.length) t+='<br>⚠️ Yüklenemeyen: '+esc(r.uploadErrors.join(', ')); return t; };
+  // Yorumdan sonra task'e ne olacağı (onay kutusunda) ve ne oldu (sonuçta)
+  var jcAfterPlan=function(){ var cs=J.ctx&&J.ctx.connected? J.ctx.commentStatus : 'To Do', cd=J.ctx&&J.ctx.connected? J.ctx.commentDue : true; var t=[]; if(cs) t.push('durumu <b>'+esc(cs)+'</b>'); if(cd) t.push('Due date\'i <b>bugün</b>'); return t.length?'<br><span class="meta">Ardından task\'in '+t.join(', ')+' yapılacak.</span>':''; };
+  var jcAfterNote=function(r){ var t=''; if(r.status) t+=' · durum: '+esc(r.status); if(r.due) t+=' · due: bugün'; if(r.afterErrors&&r.afterErrors.length) t+='<br>⚠️ '+esc(r.afterErrors.join(' · ')); return t; };
+  var atTimer;
+  document.querySelectorAll('#mJiraBox .jx-at').forEach(function(inp){
+    var last={n:'',t:0};
+    var pick=function(){ var n=inp.value.trim().replace(/^@/,''); if(!n || !MEN[n]) return; inp.value=''; if(last.n===n && Date.now()-last.t<800) return; last={n:n,t:Date.now()}; insertAtCaret(document.getElementById(inp.dataset.ta), '@'+n); };
+    inp.addEventListener('change', pick);
+    inp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); pick(); } });
+    inp.addEventListener('input', function(){ var q=inp.value.trim().replace(/^@/,''); if(MEN[q]){ pick(); return; } clearTimeout(atTimer); if(q.length<2 || !J.ctx || !J.ctx.connected) return;
+      atTimer=setTimeout(function(){ api('jiraUserSearch', q).then(function(list){ var m={}; (list||[]).forEach(function(u){ m[u.n]=u.id; }); menAdd(m); }).catch(function(){}); }, 350); });
+  });
+  var jxRes=function(t,html){ var el=document.querySelector('.jx[data-team="'+t+'"] .jx-res'); if(el) el.innerHTML=html; };
+  var jxFillAsg=function(t){
+    var wrap=document.querySelector('.jx[data-team="'+t+'"]'); if(!wrap||!J.ctx||!J.ctx.people) return;
+    var proj=(wrap.querySelector('.jx-proj').value||'').trim().toUpperCase().split(/[\s—]/)[0], sel=wrap.querySelector('.jx-asg'), P=J.ctx.people, seen={}, opts=[]; if(!sel) return;   // atama kaldırıldı: task kimseye atanmadan açılır
+    [(P[proj+'|'+t]||[]), (P[proj+'|']||[]), (P[proj+'|'+(t==='SM'?'Google':'SM')]||[])].forEach(function(arr){ arr.forEach(function(a){ if(!seen[a.id]){ seen[a.id]=1; opts.push(a); } }); });
+    sel.innerHTML=opts.map(function(a,i){ return '<option value="'+esc(a.id)+'"'+(i===0?' selected':'')+'>'+esc(a.n)+'</option>'; }).join('')+'<option value=""'+(opts.length?'':' selected')+'>— Atanmasın</option>';
+  };
+  var jxRenderConn=function(){
+    var box=document.getElementById('mJiraConn'); if(!box) return;
+    var x=J.ctx;
+    if (!x || x.connected){ box.style.display='none'; document.querySelectorAll('#mJiraBox .jx').forEach(function(e){ e.style.display=''; }); return; }
+    document.querySelectorAll('#mJiraBox .jx').forEach(function(e){ e.style.display='none'; });
+    box.style.display='';
+    box.innerHTML='<b>🔗 Jira\'yı bağla</b> · metni direkt task olarak açmak ya da yorum yazmak için bir kez kendi API token\'ını gir. '+
+      '<a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener">Token al ↗</a>'+
+      '<div class="jx-row"><input id="jxEmail" type="email" value="'+esc(x.email||'')+'" placeholder="Jira e-postan"><input id="jxTok" type="password" placeholder="API token" autocomplete="off"><button class="btn sm primary" id="jxConn">Bağla</button></div>';
+    document.getElementById('jxConn').onclick=function(){
+      var b=this; b.disabled=true; b.textContent='Bağlanıyor…';
+      api('jiraConnect', document.getElementById('jxEmail').value, document.getElementById('jxTok').value).then(function(r){
+        toast('Jira bağlandı: '+r.name); J.ctx=null; jiraCtxLoad(J.cid, true);
+      }).catch(function(e){ toast((e.message||e)); b.disabled=false; b.textContent='Bağla'; });
+    };
+  };
+  var jiraCtxLoad=function(cid, force){
+    if (!force && J.cid===cid && (J.ctx||J.loading)) return;
+    J.cid=cid; J.loading=true;
+    ['SM','Google'].forEach(function(t){ jxRes(t,'Jira bilgileri yükleniyor…'); });
+    api('getJiraContext', cid).then(function(x){
+      if (S.openId!==cid) return;
+      J.ctx=x; jxRenderConn(); if(!x.connected){ ['SM','Google'].forEach(function(t){ jxRes(t,''); }); return; }
+      var pl=document.getElementById('jxProjList'), rp=x.recentProjects||[], nm={};
+      (x.projects||[]).forEach(function(p){ nm[p.k]=p.n; });
+      if (pl) pl.innerHTML=rp.concat((x.projects||[]).map(function(p){return p.k;}).filter(function(k){ return rp.indexOf(k)<0; }))
+        .map(function(k){ return '<option value="'+esc(k)+'">'+esc(nm[k]||'')+'</option>'; }).join('');
+      Object.keys(x.people||{}).forEach(function(k){ (x.people[k]||[]).forEach(function(a){ var m={}; m[a.n]=a.id; menAdd(m); }); });
+      // Her ekip kutusuna kendi task'i: konudaki anahtar kendi ekibine, diğer ekibe o işin kardeş task'i önerilir
+      var SG=x.suggest||{}; if (!x.suggest && x.suggestKey) SG={SM:{key:x.suggestKey, why:x.suggestWhy||''}};
+      ['SM','Google'].forEach(function(t){
+        var jk=document.getElementById('mJcKey'+t), sg=SG[t]; if (!jk || jk.value || !sg || !sg.key || !JT[t]) return;
+        jk.value=sg.key; JT[t].autoKey=sg.key; JT[t].autoWhy=sg.why||''; JT[t].pick();
+      });   // mail kartı: ilgili task'i kendiliğinden seç
+      var kl=document.getElementById('jxKeyList'); if (kl) kl.innerHTML=(x.targets||[]).map(function(i){ return '<option value="'+esc(i.key)+'">'+esc(i.s||'')+'</option>'; }).join('');
+      ['SM','Google'].forEach(function(t){
+        var w=document.querySelector('.jx[data-team="'+t+'"]'); if(!w) return;
+        var pi=w.querySelector('.jx-proj'); if(!pi.value) pi.value=x.project||'';
+        var SRC={subject:'konudaki Jira anahtarından',thread:'bu iş için seçtiğin proje',config:'eşleştirme tablosundan (JiraProjeleri)',guess:'tahmin — doğru projeyi seçersen kaydedilir'};
+        jxFillAsg(t); jxRes(t, x.project ? 'Proje: '+esc(x.project)+' · '+(SRC[x.projectSrc]||'') : 'Proje bulunamadı, yaz ya da listeden seç (seçtiğin kaydedilir).');
+      });
+    }).catch(function(e){ if (S.openId===cid) ['SM','Google'].forEach(function(t){ jxRes(t,'Jira: '+esc(e.message||e)); }); })
+      .finally(function(){ J.loading=false; });
+  };
+  document.querySelectorAll('#mJiraBox .jx').forEach(function(w){
+    var t=w.dataset.team, pi=w.querySelector('.jx-proj'), ok=w.querySelector('.jx-ok');
+    pi.addEventListener('input',function(){ if(/^[A-Z0-9]+$/i.test(pi.value)) jxFillAsg(t); });
+    // Proje seçildi → bu işin ve markanın Jira projesi olarak kaydet (JiraProjeleri tablosu), diğer ekibin alanını da eşitle
+    pi.addEventListener('change',function(){
+      jxFillAsg(t);
+      var k=pi.value.trim().toUpperCase().split(/[\s—]/)[0]; if(!/^[A-Z][A-Z0-9_]{1,19}$/.test(k) || !J.ctx || !J.ctx.connected || k===J.ctx.project) return;
+      var known=(J.ctx.projects||[]).some(function(x){ return x.k===k; }); if((J.ctx.projects||[]).length && !known){ jxRes(t,'⚠️ '+esc(k)+' diye bir proje bulunamadı'); return; }
+      var prev=J.ctx.project; J.ctx.project=k;
+      document.querySelectorAll('#mJiraBox .jx').forEach(function(o){ var op=o.querySelector('.jx-proj'); if(o!==w && (!op.value.trim() || op.value.trim().toUpperCase()===prev)){ op.value=k; jxFillAsg(o.dataset.team); } });
+      api('setJiraProject', c.id, k).then(function(r){
+        var msg='📌 '+esc(r.key)+' bu işin'+(r.brand?' ve <b>'+esc(r.brand)+'</b> markasının':'')+' Jira projesi olarak kaydedildi';
+        ['SM','Google'].forEach(function(tt){ jxRes(tt,msg); });
+      }).catch(function(e){ jxRes(t,'Kaydedilemedi: '+esc(e.message||e)); });
+    });
+    // Onay kutusu: ne yapılacağını açıkça yazar, "Evet" ile çalışır
+    var ask=function(html, yesLabel, run){
+      ok.style.display=''; ok.innerHTML=html+'<div class="jx-row"><button class="btn primary sm jx-yes">'+yesLabel+'</button><button class="btn sm jx-no">Vazgeç</button></div>';
+      ok.scrollIntoView({block:'nearest', behavior:'smooth'});
+      ok.querySelector('.jx-no').onclick=function(){ ok.style.display='none'; ok.innerHTML=''; };
+      ok.querySelector('.jx-yes').onclick=function(){ var y=this; y.disabled=true; y.textContent='Gönderiliyor…'; ok.querySelector('.jx-no').disabled=true; run(); };
+    };
+    var done=function(html){ ok.style.display=''; ok.innerHTML=html; };
+    w.querySelector('.jx-go').onclick=function(){
+      try{
+        var title=document.getElementById('mJiraTitle'+t).value.trim(), body=document.getElementById('mJiraBody'+t).value, proj=pi.value.trim().toUpperCase().split(/[\s—]/)[0], sel=w.querySelector('.jx-asg');
+        if(!title||!body.trim()){ toast('Önce bu ekip için başlık ve açıklama olmalı (🧩 Hazırla)'); return; }
+        if(!J.ctx || !J.ctx.connected){ toast('Önce Jira\'yı bağla'); return; }
+        if(!proj){ toast('Proje seç'); pi.focus(); return; }
+        
+        var tms=(J.ctx.teams||[]).join(', '), atts=attSel(w.querySelector('.jx-att'), body);
+        ask('<b>'+esc(proj)+'</b> projesinde yeni task açılacak:<br>“'+esc(title)+'”<br><span class="meta">Start date ve Due date: bugün'+(tms?' · Teams: '+esc(tms):'')+(atts.length?' · 📎 '+atts.length+' ek yüklenecek: '+esc(atts.map(function(a){return a.name;}).join(', ')):'')+'</span>', '✓ Evet, task aç', function(){
+          api('createJiraIssue', c.id, t, proj, title, body, '', menUsed(body), atts).then(function(r){
+            done('✅ Task açıldı: <a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.key)+' ↗</a>'+attNote(r)); toast(r.key+' açıldı');
+            if (J.ctx){ J.ctx.targets=[{key:r.key,s:title}].concat(J.ctx.targets||[]); var kl=document.getElementById('jxKeyList'); if(kl) kl.insertAdjacentHTML('afterbegin','<option value="'+esc(r.key)+'">'+esc(title)+'</option>'); }
+          }).catch(function(e){ done('⚠️ Açılamadı: '+esc(e.message||e)); });
+        });
+      }catch(e){ toast('Hata: '+(e.message||e)); }
+    };
+  });
+  // 💬 Mevcut task'e yorum: 1) task'i seç → 2) AI task'in genel durumunu + maili okuyup yorum hazırlar → 3) onayla, yaz
+  // 💬 Mevcut task'e yorum: SM ve Google için ayrı kutular (bir mail iki ekibin task'ine de yorum gerektirebilir)
+  var JT={SM:{issue:null,autoKey:'',autoWhy:''}, Google:{issue:null,autoKey:'',autoWhy:''}};
+  ['SM','Google'].forEach(function(TM){ var JX=JT[TM];
+  var jcIssueKey=function(){ return ((document.getElementById('mJcKey'+TM).value||'').trim().toUpperCase().match(/[A-Z][A-Z0-9]+-\d+/)||[])[0]||''; };
+  var jcPick=function(){
+    var key=jcIssueKey(), info=document.getElementById('mJcInfo'+TM), st2=document.getElementById('mJcStep2'+TM);
+    if(!key){ toast('Task anahtarı gir ya da listeden seç'); return; }
+    if(!J.ctx || !J.ctx.connected){ if(J.loading){ info.textContent='Jira bilgileri yükleniyor…'; } else toast('Önce Jira\'yı bağla'); return; }
+    info.textContent=key+' yükleniyor…'; JX.issue=null;
+    api('getJiraIssueBrief', key).then(function(b){
+      if (S.openId!==c.id) return;
+      JX.issue=b; menAdd(b.people);
+      info.innerHTML=(JX.autoKey===b.key && JX.autoWhy ? '<div class="meta" style="margin-bottom:3px">🔎 Otomatik seçildi: '+esc(JX.autoWhy)+' · yanlışsa yukarıdan başka task seç</div>' : '')+'<span class="jc-info"><a href="'+esc(b.url)+'" target="_blank" rel="noopener"><b>'+esc(b.key)+'</b> ↗</a> · '+esc(b.summary)+' · <b>'+esc(b.status)+'</b>'+(b.assignee?' · Atanan: '+esc(b.assignee):'')+' · '+b.commentCount+' yorum'+
+        (b.last?'<br>Son yorum ('+esc(b.last.author)+', '+esc(b.last.date)+'): '+esc(String(b.last.text||'').slice(0,180))+(String(b.last.text||'').length>180?'…':''):'')+'</span>';
+      var pc=document.getElementById('mJcPeople'+TM);
+      pc.innerHTML='<span class="meta">Etiketle:</span> '+Object.keys(b.people||{}).map(function(n){ return '<button class="pchip" data-n="'+esc(n)+'">@'+esc(n)+'</button>'; }).join(' ');
+      pc.querySelectorAll('.pchip').forEach(function(x){ x.onclick=function(){ insertAtCaret(document.getElementById('mJcText'+TM), '@'+x.dataset.n); }; });
+      st2.style.display='';
+    }).catch(function(e){ info.textContent='Task bulunamadı: '+(e.message||e); st2.style.display='none'; });
+  };
+  var jcKeyInp=document.getElementById('mJcKey'+TM), jcT;
+  if (jcKeyInp){
+    jcKeyInp.addEventListener('change', jcPick);
+    jcKeyInp.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); jcPick(); } });
+    jcKeyInp.addEventListener('input', function(){ clearTimeout(jcT); var q=jcKeyInp.value.trim(); if(q.length<3 || /^[A-Z][A-Z0-9]+-\d+$/i.test(q)) return;
+      jcT=setTimeout(function(){ api('jiraIssueSearch', q).then(function(list){ var kl=document.getElementById('jxKeyList'); if(kl) kl.innerHTML=list.map(function(i){ return '<option value="'+esc(i.key)+'">'+esc(i.s||'')+'</option>'; }).join(''); }).catch(function(){}); },400); });
+    document.getElementById('mJcPick'+TM).onclick=jcPick;
+    var jcGen=document.getElementById('mJcGen'+TM);
+    jcGen.onclick=function(){
+      var key=jcIssueKey(); if(!key || !JX.issue){ toast('Önce task\'i seç'); return; }
+      var ta=document.getElementById('mJcText'+TM), stl=document.getElementById('mJcState'+TM), cid=c.id;
+      jcGen.disabled=true; jcGen.textContent='Task inceleniyor…'; ta.value=''; ta.placeholder='Task\'in durumu ve mail okunuyor, yorum hazırlanıyor…'; stl.textContent='';
+      api('generateJiraComment', cid, key, document.getElementById('mJcHint'+TM).value||'').then(function(r){
+        if (S.openId!==cid) return;
+        menAdd(r.people); ta.value=r.comment||'';
+        if (r.attachments){ ATT.list=r.attachments; attRender(document.getElementById('mJcAtt'+TM), r.attach||[]); }
+        stl.innerHTML=(r.state?'📋 <b>Task\'in durumu:</b> '+esc(r.state):'')+(r.reason?'<br>ℹ️ '+esc(r.reason):'');
+      }).catch(function(e){ toast('Hazırlanamadı: '+(e.message||e)); })
+        .finally(function(){ jcGen.disabled=false; jcGen.textContent='✨ Yeniden hazırla'; ta.placeholder='Yorumu yaz ya da ✨ ile hazırlat. @Ad Soyad etiketleri Jira\'da bildirim gönderir.'; });
+    };
+    document.getElementById('mJcHint'+TM).addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); jcGen.click(); } });
+    document.getElementById('mJcSend'+TM).onclick=function(){
+      var key=jcIssueKey(), body=document.getElementById('mJcText'+TM).value, ok=document.getElementById('mJcOk'+TM);
+      if(!key || !JX.issue){ toast('Önce task\'i seç'); return; }
+      if(!body.trim()){ toast('Yorum boş'); return; }
+      var men=menUsed(body), who=Object.keys(men), atts=attSel(document.getElementById('mJcAtt'+TM), body);
+      ok.style.display=''; ok.innerHTML='<b>'+esc(key)+'</b> işine yorum yazılacak'+(who.length?' ve <b>'+who.map(esc).join(', ')+'</b> etiketlenecek':'')+'.'+jcAfterPlan()+(atts.length?'<br><span class="meta">📎 '+atts.length+' ek task\'e yüklenecek: '+esc(atts.map(function(a){return a.name;}).join(', '))+'</span>':'')+
+        '<div class="jx-row"><button class="btn primary sm" id="mJcYes'+TM+'">✓ Evet, yorumu yaz</button><button class="btn sm" id="mJcNo'+TM+'">Vazgeç</button></div>';
+      ok.scrollIntoView({block:'nearest', behavior:'smooth'});
+      document.getElementById('mJcNo'+TM).onclick=function(){ ok.style.display='none'; ok.innerHTML=''; };
+      document.getElementById('mJcYes'+TM).onclick=function(){ var y=this; y.disabled=true; y.textContent='Gönderiliyor…'; document.getElementById('mJcNo'+TM).disabled=true;
+        api('addJiraComment', key, body, men, atts, c.id).then(function(r){ var kk=cardById(c.id); if (kk && r.card && r.effect){ ['status','aiStatus','priorityReason','followUp','suggestedReply'].forEach(function(f){ if(r.card[f]!==undefined) kk[f]=r.card[f]; }); render(); var se=document.getElementById('mStatus'); if(se) se.value=kk.status; } ok.innerHTML='✅ Yorum yazıldı: <a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.key)+' ↗</a>'+jcAfterNote(r)+attNote(r); toast(r.key+' yorumu yazıldı'); })
+          .catch(function(e){ ok.innerHTML='⚠️ Yazılamadı: '+esc(e.message||e); });
+      };
+      document.getElementById('mJcYes'+TM).click();   // tek tık: onay sorulmadan yazılır
+    };
+  }
+  // 🕒 Mail kartı Jira kutusu: yorumu planla
+  var jcPlanB=document.getElementById('mJcPlan'+TM);
+  if (jcPlanB) jcPlanB.onclick=function(){
+    var key=jcIssueKey(), body=document.getElementById('mJcText'+TM).value, host=document.getElementById('mJcPlanBox'+TM);
+    if(!key || !JX.issue){ toast('Önce task\'i seç'); return; }
+    if(!body.trim()){ toast('Yorum boş'); return; }
+    plPicker(host, key+' yorumu', function(at, btn){
+      var b2=document.getElementById('mJcText'+TM).value; if(!b2.trim()){ toast('Yorum boş'); return; }
+      var men=menUsed(b2), atts=attSel(document.getElementById('mJcAtt'+TM), b2);
+      btn.disabled=true; btn.textContent='Planlanıyor…';
+      api('scheduleJiraComment', key, b2, men, atts, c.id, at).then(function(r){
+        plPut(r); document.getElementById('mJcText'+TM).value='';
+        host.innerHTML='🕒 Planlandı: <b>'+esc(r.key)+'</b> · '+esc(plFmt(r.at))+' — saatinde Jira\'ya yazılacak.'+(r.atts?' 📎 '+r.atts+' ek o an yüklenecek.':'');
+        toast(r.key+' yorumu planlandı · '+plFmt(r.at));
+      }).catch(function(e){ btn.disabled=false; btn.textContent='🕒 Planla'; toast('Planlanamadı: '+(e.message||e)); });
+    });
+  };
+  JX.pick=jcPick;
+  });
+  // 🧩 Jira bildirimi kartında cevap: maile değil, direkt Jira task'ine yorum olarak (etiketleme dahil)
+  // Jira kartında "Maile cevap": önce ilgili marka mailini (loop) seç; cevap o maile gider, AI hem maili hem Jira'yı okur
+  // Markaya tek cevap, birden fazla ekip task'i (ör. SM + Google): diğer task'leri ekle, AI hepsinin gelişmelerini birleştirir
+  RM.extra=[]; RM.sugg=[];
+  var rxRender=function(){
+    var box=document.getElementById('mRExtra'); if(!box) return;
+    var sug=RM.sugg.filter(function(x){ return RM.extra.indexOf(x.key)<0; });
+    box.innerHTML='<span class="meta">Birleştirilecek diğer task\'ler:</span>'+
+      RM.extra.map(function(k){ var t=RM.sugg.filter(function(x){return x.key===k;})[0]; return '<button class="pchip on" data-rm="'+esc(k)+'" title="Çıkar">✓ '+esc(k)+(t&&t.team?' · '+esc(t.team):'')+' ×</button>'; }).join('')+
+      sug.map(function(x){ return '<button class="pchip" data-add="'+esc(x.key)+'" title="'+esc((x.s||'')+(x.why?' · '+x.why:''))+'">➕ '+esc(x.key)+(x.team?' · '+esc(x.team):'')+'</button>'; }).join('')+
+      '<input id="mRxKey" placeholder="+ task no (ör. ORNEXP-3182)" autocomplete="off">';
+    box.querySelectorAll('[data-rm]').forEach(function(b){ b.onclick=function(){ RM.extra=RM.extra.filter(function(k){ return k!==b.dataset.rm; }); rxRender(); }; });
+    box.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ if(RM.extra.indexOf(b.dataset.add)<0) RM.extra.push(b.dataset.add); rxRender(); }; });
+    var inp=document.getElementById('mRxKey'); inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); var k=(inp.value.toUpperCase().match(/[A-Z][A-Z0-9]+-\d+/)||[])[0]; if(!k){ toast('Task numarası yaz'); return; } if(k!==RKEY && RM.extra.indexOf(k)<0) RM.extra.push(k); rxRender(); } };
+  };
+  var rxLoad=function(tid){
+    RM.extra=[]; RM.sugg=[]; rxRender(); if(!tid) return;
+    api('getSiblingTasks', c.id, tid).then(function(r){
+      if (S.openId!==c.id || R.tid!==tid) return;
+      RM.sugg=r.list||[];
+      RM.sugg.forEach(function(x){ if (x.auto && RM.extra.indexOf(x.key)<0) RM.extra.push(x.key); });   // aynı marka mailine bağlı task'ler kendiliğinden eklenir
+      rxRender();
+    }).catch(function(){});
+  };
+  // 📨 Yeni mail (Jira bildirimi kartından markaya yeni konu)
+  var NM={loaded:false, to:[], cc:[], opts:[], extra:[], sugg:[]};
+  var nmRc=function(){
+    var box=document.getElementById('mNRc'); if(!box) return;
+    var all=NM.opts.slice(); [].concat(NM.to,NM.cc).forEach(function(e){ if(!all.some(function(o){return o.email===e})) all.push({email:e,name:'',role:''}); });
+    box.innerHTML=all.map(function(o){ var st=NM.to.indexOf(o.email)>=0?'to':(NM.cc.indexOf(o.email)>=0?'cc':'');
+      return '<button class="rcp '+st+'" data-e="'+esc(o.email)+'" title="'+esc(o.email)+' · tıkla: Kime → Cc → çıkar"><b>'+(st==='to'?'Kime':st==='cc'?'Cc':'+')+'</b> '+esc(o.name||o.email)+(o.role==='EXTERNAL'?' <i>dış</i>':'')+'</button>'; }).join('')+
+      '<input id="mNAdd" placeholder="e-posta ekle" autocomplete="off">';
+    box.querySelectorAll('.rcp').forEach(function(b){ b.onclick=function(){ var e=b.dataset.e, i=NM.to.indexOf(e), j=NM.cc.indexOf(e);
+      if(i>=0){ NM.to.splice(i,1); NM.cc.push(e); } else if(j>=0){ NM.cc.splice(j,1); } else NM.to.push(e); nmRc(); }; });
+    var inp=document.getElementById('mNAdd'); inp.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===','){ ev.preventDefault(); var v=inp.value.trim().toLowerCase().replace(/[,;]$/,''); if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ if(NM.to.indexOf(v)<0) NM.to.push(v); nmRc(); } else toast('Geçerli bir e-posta yaz'); } };
+  };
+  var nmExtra=function(){
+    var box=document.getElementById('mNExtra'); if(!box) return;
+    var sug=NM.sugg.filter(function(x){ return NM.extra.indexOf(x.key)<0; });
+    box.innerHTML='<span class="meta">Mailde kullanılacak task\'ler: <b>'+esc(RKEY)+'</b></span>'+
+      NM.extra.map(function(k){ return '<button class="pchip on" data-rm="'+esc(k)+'" title="Çıkar">✓ '+esc(k)+' ×</button>'; }).join('')+
+      sug.map(function(x){ return '<button class="pchip" data-add="'+esc(x.key)+'" title="'+esc((x.s||'')+(x.why?' · '+x.why:''))+'">➕ '+esc(x.key)+(x.team?' · '+esc(x.team):'')+'</button>'; }).join('')+
+      '<input id="mNxKey" placeholder="+ task no" autocomplete="off">';
+    box.querySelectorAll('[data-rm]').forEach(function(b){ b.onclick=function(){ NM.extra=NM.extra.filter(function(k){ return k!==b.dataset.rm; }); nmExtra(); }; });
+    box.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ NM.extra.push(b.dataset.add); nmExtra(); }; });
+    var inp=document.getElementById('mNxKey'); inp.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); var k=(inp.value.toUpperCase().match(/[A-Z][A-Z0-9]+-\d+/)||[])[0]; if(!k){ toast('Task numarası yaz'); return; } if(k!==RKEY && NM.extra.indexOf(k)<0) NM.extra.push(k); nmExtra(); } };
+  };
+  var nmLoad=function(){
+    if (NM.loaded) return; NM.loaded=true; nmExtra();
+    api('getNewMailContext', c.id).then(function(r){
+      if (S.openId!==c.id) return;
+      NM.to=r.to||[]; NM.cc=r.cc||[]; NM.opts=r.options||[]; nmRc();
+      if (r.from) document.getElementById('mNInfo').innerHTML='Markaya bu Jira işiyle ilgili YENİ bir mail yazarsın. Alıcılar <b>'+esc(r.from)+'</b> mailinden önerildi, değiştirebilirsin.';
+      NM.sugg=r.siblings||[]; nmExtra();
+    }).catch(function(e){ document.getElementById('mNRc').innerHTML='<span class="meta">Alıcılar önerilemedi: '+esc(e.message||e)+'. E-posta ekleyebilirsin.</span>'; NM.opts=[]; nmRc(); });
+    document.getElementById('mNHint').onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('mNAi').click(); } };
+    document.getElementById('mNAi').onclick=function(){
+      var b=this, ta=document.getElementById('mNText'), sj=document.getElementById('mNSubj');
+      b.disabled=true; b.textContent='Yazılıyor…'; ta.placeholder='Mail yazılıyor…';
+      api('prepareNewMail', c.id, document.getElementById('mNHint').value||'', NM.extra, NM.to, NM.cc).then(function(r){
+        if (S.openId!==c.id) return; ta.value=r.body||''; if (r.subject && !sj.value.trim()) sj.value=r.subject; else if (r.subject && sj.dataset.ai===sj.value) sj.value=r.subject; sj.dataset.ai=sj.value;
+      }).catch(function(e){ toast('Mail yazılamadı: '+(e.message||e)); })
+        .finally(function(){ b.disabled=false; b.textContent='✨ Yeniden yaz'; ta.placeholder='Mail metni'; });
+    };
+    var send=function(mode, btn){
+      var t=document.getElementById('mNText').value, sj=document.getElementById('mNSubj').value.trim(), ok=document.getElementById('mNOk');
+      if(!NM.to.length){ toast('En az bir "Kime" alıcısı seç'); return; }
+      if(!sj){ toast('Konu yaz'); return; }
+      if(!t.trim()){ toast('Mail metni boş'); return; }
+      btn.disabled=true;
+      api('sendNewMail', c.id, NM.to, NM.cc, sj, t, NM.extra, mode).then(function(r){
+        ok.style.display='';
+        ok.innerHTML= mode==='send' ? '✅ Yeni mail gönderildi: <b>'+esc(sj)+'</b>'+(r.link?' · <a href="'+esc(r.link)+'" target="_blank" rel="noopener">Gmail ↗</a>':'')+'<br><span class="meta">Mail bu Jira task\'ine bağlandı; sonraki taramada board\'a kart olarak düşer.</span>' : '✅ Gmail\'de taslak oluşturuldu.';
+        if (mode==='send'){ document.getElementById('mNText').value=''; toast('Gönderildi'); } else toast('Taslak oluşturuldu');
+      }).catch(function(e){ toast('Gönderilemedi: '+(e.message||e)); }).finally(function(){ btn.disabled=false; });
+    };
+    document.getElementById('mNSend').onclick=function(){ send('send', this); };
+    document.getElementById('mNDraft').onclick=function(){ send('draft', this); };
+  };
+  var rlLoad=function(){
+    var sel=document.getElementById('mRLoopSel'), info=document.getElementById('mRLoopInfo'); if(!sel || RM.loops) return;
+    RM.loops='loading'; R.tid=''; R.loaded=false;
+    var setT=function(v){ R.tid=v||''; R.loaded=false; R.loading=false; R.to=[]; R.cc=[]; R.opts=[]; loadRcpt(); if (RM.mode==='mail') peekShow(R.tid); rxLoad(R.tid); };
+    sel.onchange=function(){ setT(sel.value); var ta=document.getElementById('mReply'); if (ta && ta.value===RM.lastAi) ta.value=''; };
+    api('getBrandThreadCandidates', c.id).then(function(r){
+      if (S.openId!==c.id) return; RM.loops=r;
+      sel.innerHTML=(r.pick?'':'<option value="">— Maili seç</option>')+r.list.map(function(x){
+        return '<option value="'+esc(x.id)+'"'+(x.id===r.pick?' selected':'')+'>'+esc((x.brand?x.brand+' · ':'')+(x.subject||x.title||'')+' · '+fmtDate(x.lastDate)+(x.mapped?' · bağlı':'')+(x.closed?' · kapalı':''))+'</option>'; }).join('');
+      info.innerHTML=r.list.length ? (r.pick?'':'Hangi maile ait olduğundan emin olamadım, listeden seç. ')+'Cevap seçtiğin maile gider; ✨ hem o maili hem '+esc(r.key)+' task\'ini okuyarak yazar.'
+        : 'Bu işe ait marka maili bulunamadı (son 60 gün).';
+      setT(sel.value);
+      var bk=sel.value && cardById(sel.value), ta=document.getElementById('mReply');
+      if (bk && bk.suggestedReply && ta && !ta.value.trim()) ta.value=bk.suggestedReply;
+    }).catch(function(e){ RM.loops=null; info.textContent='Mailler alınamadı: '+(e.message||e); });
+  };
+  var rmApply=function(){
+    var jira=RM.mode==='jira';
+    var el=function(id){ return document.getElementById(id); };
+    // Yeni mail modu: standart cevap alanlarını gizle, kendi kutusunu göster
+    var isNew=RM.mode==='new', nb=el('mNewBox');
+    [el('mRcpt'), el('mAiHint')&&el('mAiHint').parentElement, el('mReply'), el('mSend')&&el('mSend').parentElement, el('mRJOk'), el('mPlanBox')].forEach(function(x){ if(x && isNew) x.style.display='none'; });
+    if (nb) nb.style.display=isNew?'':'none';
+    if (isNew){ if (el('mRMode')) el('mRMode').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.m==='new'); });
+      if (el('mRJira')) el('mRJira').style.display='none'; if (el('mRLoop')) el('mRLoop').style.display='none'; peekHide(); nmLoad(); return; }
+    [el('mAiHint')&&el('mAiHint').parentElement, el('mReply'), el('mSend')&&el('mSend').parentElement].forEach(function(x){ if(x) x.style.display=''; });
+    if (el('mRMode')) el('mRMode').querySelectorAll('button').forEach(function(b){ b.classList.toggle('on', b.dataset.m===RM.mode); });
+    if (el('mRcpt')) el('mRcpt').style.display=jira?'none':'';
+    if (el('mRJira')) el('mRJira').style.display=jira?'':'none';
+    if (el('mDraft')) el('mDraft').style.display=jira?'none':'';
+    if (el('mPlan')) el('mPlan').style.display=jira?'':'none';
+    if (!jira && el('mPlanBox')) el('mPlanBox').style.display='none';
+    if (el('mSend')){ el('mSend').textContent=jira?'💬 Jira\'ya yorum yaz':'Gönder'; delete el('mSend').dataset.confirm; }
+    // Mail için hazırlanmış öneri cevap ("Selamlar, …") Jira yorumuna uymaz → Jira modunda gizle, mail moduna dönünce geri gelsin
+    var ta=el('mReply'); if (ta){ if (jira && c.suggestedReply && ta.value===c.suggestedReply){ RM.savedMail=ta.value; ta.value=''; } else if (!jira && !ta.value && RM.savedMail){ ta.value=RM.savedMail; } }
+    if (el('mReply')) el('mReply').placeholder=jira?'Jira\'ya yazılacak yorum. @Ad Soyad etiketleri bildirim gönderir. ✨ ile task\'in durumuna göre hazırlat.':'Cevabını yaz ya da ✨ AI ile yazdır';
+    if (el('mAiGo')) el('mAiGo').textContent=jira?'✨ Durumu incele, yorum hazırla':'✨ AI ile yaz';
+    if (el('mRLoop')) el('mRLoop').style.display=jira?'none':'';
+    if (el('mRLoop')){ if (jira) peekHide(); else if (R.tid) peekShow(R.tid); }
+    if (!jira){ if (el('mRLoop')){ if (el('mAiGo')) el('mAiGo').textContent='✨ Mail + Jira\'ya bakıp yaz'; rlLoad(); } loadRcpt(); return; }
+    var pr=el('mRJira'); if(!pr) return;
+    if (RM.brief){ rjPeople(); return; }
+    if (RM.loading) return; RM.loading=true; pr.innerHTML='<span class="meta">'+esc(RKEY)+' yükleniyor…</span>';
+    api('getJiraIssueBrief', RKEY).then(function(b){ if(S.openId!==c.id) return; RM.brief=b; menAdd(b.people); rjPeople(); })
+      .catch(function(e){ pr.innerHTML='<span class="meta">Jira: '+esc(e.message||e)+' — Jira bağlı değilse 🧩 Jira metni kutusundan bağla.</span>'; })
+      .finally(function(){ RM.loading=false; });
+  };
+  var rjPeople=function(){
+    var pr=document.getElementById('mRJira'), b=RM.brief; if(!pr||!b) return;
+    pr.innerHTML='<span class="meta"><a href="'+esc(b.url)+'" target="_blank" rel="noopener"><b>'+esc(b.key)+'</b> ↗</a> · '+esc(b.status)+(b.assignee?' · '+esc(b.assignee):'')+'</span> <span class="meta">Etiketle:</span> '+
+      Object.keys(b.people||{}).map(function(n){ return '<button class="pchip" data-n="'+esc(n)+'">@'+esc(n)+'</button>'; }).join(' ')+
+      ' <input class="jx-at" data-ta="mReply" list="jxPeopleList" placeholder="@ başka biri" autocomplete="off" style="max-width:150px">';
+    pr.querySelectorAll('.pchip').forEach(function(x){ x.onclick=function(){ insertAtCaret(document.getElementById('mReply'), '@'+x.dataset.n); }; });
+    var at=pr.querySelector('.jx-at'), tmr;
+    var pick=function(){ var n=at.value.trim().replace(/^@/,''); if(n && MEN[n]){ at.value=''; insertAtCaret(document.getElementById('mReply'), '@'+n); } };
+    at.addEventListener('change', pick); at.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); pick(); } });
+    at.addEventListener('input', function(){ var q=at.value.trim().replace(/^@/,''); if(MEN[q]){ pick(); return; } clearTimeout(tmr); if(q.length<2) return;
+      tmr=setTimeout(function(){ api('jiraUserSearch', q).then(function(list){ var m={}; (list||[]).forEach(function(u){ m[u.n]=u.id; }); menAdd(m); }).catch(function(){}); },350); });
+  };
+  var rjAi=function(){
+    var box=document.getElementById('mReplyBox'), ta=document.getElementById('mReply'), go=document.getElementById('mAiGo'), top=document.getElementById('mAi'), cid=c.id;
+    showBox(); box.scrollIntoView({block:'nearest', behavior:'smooth'});
+    if (go.disabled) return;
+    var prev=ta.value; go.disabled=true; if(top) top.disabled=true; go.textContent='Task inceleniyor…'; box.classList.add('ai-busy'); ta.value=''; ta.placeholder='Task\'in durumu ve mail okunuyor, yorum hazırlanıyor…';
+    api('generateJiraComment', cid, RKEY, (document.getElementById('mAiHint')||{}).value||'').then(function(r){
+      if (S.openId!==cid) return; menAdd(r.people); ta.value=r.comment||''; ta.focus();
+      if (r.state) toast('Task\'in durumu: '+r.state);
+    }).catch(function(e){ if (S.openId===cid) ta.value=prev; toast('Yorum hazırlanamadı: '+(e.message||e)); })
+      .finally(function(){ if (S.openId!==cid) return; box.classList.remove('ai-busy'); go.disabled=false; if(top) top.disabled=false; go.textContent='✨ Yeniden hazırla'; rmApply(); });
+  };
+  var rjSend=function(btn){
+    var body=document.getElementById('mReply').value, ok=document.getElementById('mRJOk');
+    if(!body.trim()){ toast('Önce yorumu yaz'); return; }
+    var men=menUsed(body), who=Object.keys(men);
+    ok.style.display=''; ok.innerHTML='<b>'+esc(RKEY)+'</b> işine bu metin yorum olarak yazılacak'+(who.length?' ve <b>'+who.map(esc).join(', ')+'</b> etiketlenecek':'')+'. Maile cevap gitmez.'+jcAfterPlan()+
+      '<div class="jx-row"><button class="btn primary sm" id="mRJYes">✓ Evet, Jira\'ya yaz</button><button class="btn sm" id="mRJNo">Vazgeç</button></div>';
+    ok.scrollIntoView({block:'nearest', behavior:'smooth'});
+    document.getElementById('mRJNo').onclick=function(){ ok.style.display='none'; ok.innerHTML=''; };
+    document.getElementById('mRJYes').onclick=function(){ var y=this; y.disabled=true; y.textContent='Gönderiliyor…'; document.getElementById('mRJNo').disabled=true;
+      api('addJiraComment', RKEY, body, men, [], c.id).then(function(r){
+        ok.innerHTML='✅ Jira\'ya yorum yazıldı: <a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.key)+' ↗</a>'+jcAfterNote(r)+(r.card?'<br><span class="meta">Yorumuna göre kart: <b>'+esc(statusName(r.card.status))+'</b>'+(r.card.priorityReason?' · '+esc(r.card.priorityReason):'')+'</span>':''); toast(r.key+' yorumu yazıldı'+(r.card?' · '+statusName(r.card.status):''));
+        document.getElementById('mReply').value='';
+        var k=cardById(c.id); if (k && r.card){ ['status','aiStatus','priorityReason','followUp','suggestedReply'].forEach(function(f){ if(r.card[f]!==undefined) k[f]=r.card[f]; }); render(); var se=document.getElementById('mStatus'); if(se) se.value=k.status; }
+      }).catch(function(e){ ok.innerHTML='⚠️ Yazılamadı: '+esc(e.message||e); });
+    };
+    document.getElementById('mRJYes').click();   // tek tık: onay sorulmadan yazılır
+  };
+  if (RKEY){
+    var rmb=document.getElementById('mRMode'); if (rmb) rmb.querySelectorAll('button').forEach(function(b){ b.onclick=function(){ RM.mode=b.dataset.m; rmApply(); }; });
+    var sbJ=document.getElementById('mSend'); if (sbJ) sbJ.onclick=function(){ if (RM.mode==='jira') rjSend(sbJ); else sendIt('send', sbJ); };
+    var rbx=document.getElementById('mReplyBox'); if (rbx && rbx.style.display!=='none') rmApply(); else rmApply.pending=true;
+    var wbJ=document.getElementById('mWrite'); if (wbJ){ var o=wbJ.onclick; wbJ.onclick=function(){ o && o(); rmApply(); }; }
+  }
+  // 🕒 Jira kartı: yorumu planla
+  var plB=document.getElementById('mPlan');
+  if (plB && RKEY) plB.onclick=function(){
+    var body=document.getElementById('mReply').value, host=document.getElementById('mPlanBox');
+    if(!body.trim()){ toast('Önce yorumu yaz'); return; }
+    plPicker(host, RKEY+' yorumu', function(at, btn){
+      var b2=document.getElementById('mReply').value; if(!b2.trim()){ toast('Önce yorumu yaz'); return; }
+      btn.disabled=true; btn.textContent='Planlanıyor…';
+      api('scheduleJiraComment', RKEY, b2, menUsed(b2), [], c.id, at).then(function(r){
+        plPut(r); document.getElementById('mReply').value='';
+        host.innerHTML='🕒 Planlandı: <b>'+esc(r.key)+'</b> · '+esc(plFmt(r.at))+' — saatinde Jira\'ya yazılacak, kart durumu da o zaman yorumuna göre güncellenir.';
+        toast(r.key+' yorumu planlandı · '+plFmt(r.at));
+      }).catch(function(e){ btn.disabled=false; btn.textContent='🕒 Planla'; toast('Planlanamadı: '+(e.message||e)); });
+    });
+  };
+  plRenderCard(c);
+  // ↩️ Markaya dön: cevap kutusunu "Maile cevap" modunda aç (önce ilgili marka mailini seç)
+  var brb=document.getElementById('mBrand');
+  var nmb=document.getElementById('mNewMail');
+  if (nmb) nmb.onclick=function(){ RM.mode='new'; var box=showBox(); if(!box) return; rmApply(); box.scrollIntoView({block:'nearest', behavior:'smooth'}); };
+  if (brb) brb.onclick=function(){ RM.mode='mail'; var box=showBox(); if(!box) return; rmApply(); box.scrollIntoView({block:'nearest', behavior:'smooth'}); var sl=document.getElementById('mRLoopSel'); if (sl) setTimeout(function(){ sl.focus(); },150); };
+  // 🧩 Jira durumu: task'in durumunu karttan değiştir (seçince direkt uygulanır)
+  var jstSel=document.getElementById('mJstSel');
+  if (jstSel){
+    var jstKey=(String(c.subject||'').match(/\b([A-Z][A-Z0-9]{1,14}-\d{1,7})\b/)||[])[1], jstInfo=document.getElementById('mJstInfo');
+    var jstFill=function(r){
+      if (S.openId!==c.id) return;
+      jstSel.innerHTML='<option value="" selected>'+esc(r.status||'?')+'</option>'+r.transitions.filter(function(t){ return (t.to||t.name)!==r.status; }).map(function(t){
+        return '<option value="'+esc(t.id)+'">→ '+esc(t.to||t.name)+(t.to&&t.name!==t.to?' ('+esc(t.name)+')':'')+'</option>'; }).join('');
+      jstSel.disabled=false;
+      jstInfo.innerHTML='<a href="'+esc(r.url)+'" target="_blank" rel="noopener">'+esc(r.key)+' ↗</a>'+(r.assignee?' · '+esc(r.assignee):'');
+    };
+    api('getJiraTransitions', jstKey).then(jstFill).catch(function(e){ jstSel.innerHTML='<option>—</option>'; jstInfo.textContent=/bağla|token|401|403/i.test(String(e.message||e))?'Jira bağlı değil (🧩 Jira metni > 🔗 bağla)':'Durum alınamadı: '+(e.message||e); });
+    jstSel.onchange=function(){
+      var id=jstSel.value; if(!id) return; var to=jstSel.options[jstSel.selectedIndex].text.replace(/^→ /,'');
+      jstSel.disabled=true; jstInfo.textContent='Durum değiştiriliyor…';
+      api('setJiraStatus', jstKey, id, c.id).then(function(r){ jstFill(r);
+          var k=cardById(c.id); if (k && r.card){ ['status','aiStatus','priorityReason','closed','closedAt','closedBy'].forEach(function(f){ if(r.card[f]!==undefined) k[f]=r.card[f]; }); render(); var se=document.getElementById('mStatus'); if(se) se.value=k.status; }
+          toast(jstKey+' → '+r.status+(r.card?' · kart: '+statusName(r.card.status):'')); })
+        .catch(function(e){ jstSel.disabled=false; jstSel.value=''; jstInfo.textContent='Değiştirilemedi: '+(e.message||e); });
+    };
+  }
+  var mbk=document.getElementById('mBack'); if (mbk) mbk.onclick=function(){ var b=S.backFrom&&S.backFrom.jira; S.backFrom=null; if (b && cardById(b)) openCard(b); };
+  // 🧩 Mail kartında cevap: ilgili Jira task'lerinin güncel durumunu da okuyup cevap yaz (ör. marka "Burası okey midir, PW'leri alabilir miyim?")
+  var RJX={keys:[], sugg:[], loaded:false, loading:false, err:''};
+  var rjxBtn=function(){ var g=document.getElementById('mAiGo'); if(g && !g.disabled) g.textContent=RJX.keys.length?'✨ Mail + Jira\'ya bakıp yaz':(c.suggestedReply?'✨ Yeniden yaz':'✨ AI ile yaz'); };
+  var rjxRender=function(){
+    var box=document.getElementById('mRJx'); if(!box) return;
+    if (!RJX.loaded){ box.innerHTML='<button class="pchip" id="mRJxLoad" title="Bu işin Jira task\'lerindeki son durumu (ekip yorumları, durum) cevaba kat">'+(RJX.loading?'Jira task\'leri aranıyor…':'🧩 Jira\'dan bilgi ekle')+'</button>'+(RJX.err?' <span class="meta">'+esc(RJX.err)+'</span>':'');
+      var lb=document.getElementById('mRJxLoad'); if (lb) lb.onclick=rjxLoad; return; }
+    var sug=RJX.sugg.filter(function(x){ return RJX.keys.indexOf(x.key)<0; }).slice(0,5);
+    box.innerHTML='<span class="meta">Cevapta kullanılacak Jira task\'leri:</span>'+
+      RJX.keys.map(function(k){ var t=RJX.sugg.filter(function(x){return x.key===k;})[0]; return '<button class="pchip on" data-rm="'+esc(k)+'" title="Çıkar'+(t&&t.s?' · '+esc(t.s):'')+'">✓ '+esc(k)+(t&&t.team?' · '+esc(t.team):'')+' ×</button>'; }).join('')+
+      sug.map(function(x){ return '<button class="pchip" data-add="'+esc(x.key)+'" title="'+esc(x.s||'')+'">➕ '+esc(x.key)+(x.team?' · '+esc(x.team):'')+'</button>'; }).join('')+
+      '<input id="mRJxKey" list="mRJxList" placeholder="+ task no" autocomplete="off"><datalist id="mRJxList">'+RJX.sugg.map(function(x){ return '<option value="'+esc(x.key)+'">'+esc(x.s||'')+'</option>'; }).join('')+'</datalist>'+
+      (RJX.keys.length?'':' <span class="meta">Task seçilmezse cevap sadece maile göre yazılır.</span>');
+    box.querySelectorAll('[data-rm]').forEach(function(b){ b.onclick=function(){ RJX.keys=RJX.keys.filter(function(k){ return k!==b.dataset.rm; }); rjxRender(); rjxBtn(); }; });
+    box.querySelectorAll('[data-add]').forEach(function(b){ b.onclick=function(){ if(RJX.keys.indexOf(b.dataset.add)<0) RJX.keys.push(b.dataset.add); rjxRender(); rjxBtn(); }; });
+    var ki=document.getElementById('mRJxKey'); if (ki){ var addK=function(){ var k=((ki.value||'').toUpperCase().match(/[A-Z][A-Z0-9]+-\d+/)||[])[0]; if(!k){ toast('Task numarası gir (ör. ORNEXP-3186)'); return; } if(RJX.keys.indexOf(k)<0) RJX.keys.push(k); rjxRender(); rjxBtn(); };
+      ki.addEventListener('keydown', function(e){ if(e.key==='Enter'){ e.preventDefault(); addK(); } }); ki.addEventListener('change', function(){ if(/[A-Z][A-Z0-9]+-\d+/i.test(ki.value)) addK(); }); }
+  };
+  var rjxLoad=function(){
+    if (RJX.loading) return; RJX.loading=true; RJX.err=''; rjxRender(); var cid=c.id;
+    api('getReplyJiraTasks', cid).then(function(r){
+      if (S.openId!==cid) return;
+      if (!r || !r.connected){ RJX.loading=false; RJX.err='Jira bağlı değil (🧩 Jira metni > 🔗 bağla)'; rjxRender(); return; }
+      RJX.sugg=(r.targets||[]).map(function(t){ return {key:t.key, s:t.s, team:t.team||''}; });
+      ['SM','Google'].forEach(function(t){ var sg=(r.suggest||{})[t]; if (sg && sg.key && RJX.keys.indexOf(sg.key)<0){ RJX.keys.push(sg.key); if(!RJX.sugg.some(function(x){return x.key===sg.key;})) RJX.sugg.unshift({key:sg.key, s:sg.why||'', team:t}); } });
+      RJX.loaded=true; RJX.loading=false; rjxRender(); rjxBtn();
+      if (!RJX.keys.length) toast('İlgili task otomatik bulunamadı, listeden ya da numarasıyla ekle');
+    }).catch(function(e){ RJX.loading=false; RJX.err='Yüklenemedi: '+(e.message||e); rjxRender(); });
+  };
+  rjxRender();
   // ✨ AI ile cevap: yazı avatarıyla taslak üret (her kart için)
   var aiRun=function(){
     var box=document.getElementById('mReplyBox'), ta=document.getElementById('mReply'), go=document.getElementById('mAiGo'), top=document.getElementById('mAi');
     if (!box || !ta) return;
-    box.style.display=''; box.scrollIntoView({block:'nearest', behavior:'smooth'});
+    if (RM.mode==='jira') return rjAi();
+    if (document.getElementById('mRLoop') && !R.tid){ showBox(); toast('Önce cevabın gideceği maili seç'); return; }
+    showBox(); box.scrollIntoView({block:'nearest', behavior:'smooth'});
     if (go.disabled) return;
     var hint=(document.getElementById('mAiHint')||{}).value||'', prev=ta.value;
     go.disabled=true; if(top) top.disabled=true; go.textContent='Yazılıyor…'; box.classList.add('ai-busy'); ta.value=''; ta.placeholder='Cevap yazılıyor…';
-    var cid=c.id;
-    api('generateAiReply', cid, hint).then(function(t){
-      var cc=cardById(cid); if (cc) cc.suggestedReply=t;
+    var cid=c.id, tid=R.tid;
+    var call = (document.getElementById('mRLoop') && tid!==c.id) ? api('prepareBrandUpdate', c.id, tid, hint, RM.extra||[]).then(function(r){ var bk=cardById(tid); if (bk) bk.suggestedReply=r.reply; return r.reply; })
+                                    : (RJX.keys.length && tid===cid) ? api('prepareReplyFromJira', cid, hint, RJX.keys.slice()).then(function(r){ if (r.failed && r.failed.length) toast('Okunamayan task: '+r.failed.join(', ')); return r.reply; })
+                                    : api('generateAiReply', cid, hint, R.loaded ? {to:R.to, cc:R.cc} : null);
+    call.then(function(t){
+      var cc=cardById(cid); if (cc && tid===cid) cc.suggestedReply=t;
       if (S.openId!==cid) return;
-      ta.value=t; ta.focus();
+      ta.value=t; RM.lastAi=t; ta.focus();
     }).catch(function(e){ if (S.openId===cid) ta.value=prev; toast('Cevap yazılamadı: '+(e.message||e)); })
-      .finally(function(){ if (S.openId!==cid) return; box.classList.remove('ai-busy'); go.disabled=false; if(top) top.disabled=false; go.textContent='✨ Yeniden yaz'; });
+      .finally(function(){ if (S.openId!==cid) return; box.classList.remove('ai-busy'); go.disabled=false; if(top) top.disabled=false; go.textContent=RJX.keys.length?'✨ Mail + Jira\'ya bakıp yaz':'✨ Yeniden yaz'; ta.placeholder='Cevabını yaz ya da ✨ AI ile yazdır'; });
   };
   var ab=document.getElementById('mAi'); if (ab) ab.onclick=aiRun;
   var ag=document.getElementById('mAiGo'); if (ag) ag.onclick=aiRun;
   var ah=document.getElementById('mAiHint'); if (ah) ah.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); aiRun(); } });
   if (S.aiAutoFor===c.id){ S.aiAutoFor=null; aiRun(); }
   var d=document.getElementById('mDraft');
-  if(d) d.onclick=function(){ d.disabled=true; api('createReplyDraft',c.id,document.getElementById('mReply').value).then(function(link){ toast('Taslak Gmail\'de oluşturuldu'); if(!DEMO) window.open(link,'_blank'); }).catch(function(e){toast('Hata: '+(e.message||e))}).finally(function(){d.disabled=false}); };
+  if(d) d.onclick=function(){ sendIt('draft', d); };
   var cp=document.getElementById('mCopy');
   if(cp) cp.onclick=function(){ navigator.clipboard.writeText(document.getElementById('mReply').value).then(function(){toast('Kopyalandı')}); };
   var tb=document.getElementById('mThread');
@@ -1216,6 +2124,26 @@ function openCard(id){
 // sıradaki kartın konuşması arkada yüklenir. Aynı anda en fazla 2 istek; pencere kapanınca
 // henüz başlamamış istekler iptal edilir (başlamış olanlar bitip önbelleğe yazılır).
 // Kartta yeni mesaj varsa (mesaj sayısı/son tarih değişti) önbellek geçersiz sayılır.
+// Seçili marka mailini kart penceresinin yanında göster (Jira kartından maile cevap)
+var Peek={ id:null };
+function peekHide(){ Peek.id=null; var ov=document.getElementById('ov'), pk=document.getElementById('peek'); if(ov) ov.classList.remove('peeking'); if(pk) pk.innerHTML=''; }
+function peekShow(id){
+  var pk=document.getElementById('peek'), ov=document.getElementById('ov'); if(!pk||!ov) return;
+  if (!id){ peekHide(); return; }
+  if (Peek.id===id && ov.classList.contains('peeking')) return;
+  Peek.id=id; var k=cardById(id), owner=S.openId;
+  pk.innerHTML='<div class="peek-h"><div style="flex:1;min-width:0"><div class="meta">✉ Cevap gidecek mail'+(k&&k.brand?' · '+esc(k.brand):'')+'</div><h3>'+esc(k?(k.title||k.subject):'Seçilen mail')+'</h3>'+(k&&k.subject&&k.title&&k.title!==k.subject?'<div class="meta">'+esc(k.subject)+'</div>':'')+'</div>'+
+    (k&&k.link?'<a class="btn sm" href="'+esc(k.link)+'" target="_blank" rel="noopener" style="text-decoration:none">Gmail ↗</a>':'')+'<button class="x" id="peekX" aria-label="Kapat" title="Maili gizle">×</button></div>'+
+    '<div class="msgs" id="peekMsgs"><div class="meta">Mail yükleniyor…</div></div>';
+  ov.classList.add('peeking');
+  document.getElementById('peekX').onclick=function(){ peekHide(); };
+  (k ? Detail.get(k) : api('getThreadDetail', id)).then(function(d){
+    if (Peek.id!==id || S.openId!==owner) return;
+    var box=document.getElementById('peekMsgs'); if(!box) return;
+    var keepT=S.threadMsgs, keepN=S.openNew; S.openNew=null;          // renderThread açık kartın durumunu değiştirmesin
+    try { renderThread(box, (d&&d.messages)||[]); } finally { S.threadMsgs=keepT; S.openNew=keepN; }
+  }).catch(function(e){ var box=document.getElementById('peekMsgs'); if(box && Peek.id===id) box.innerHTML='<div class="meta">Mail alınamadı: '+esc(e.message||e)+'</div>'; });
+}
 var Detail = {
   cache:{}, order:[], queue:[], running:0, MAX:2, SIZE:25, TTL:10*60*1000, timer:null,
   key:function(c){ return c.id+'|'+c.msgCount+'|'+c.lastDate; },
@@ -1279,7 +2207,7 @@ function upd(c,changes){
   api('updateCard',c.id,changes).then(function(nc){ Object.assign(c,nc); render(); openCard(c.id); toast('Güncellendi'); })
     .catch(function(e){toast('Hata: '+(e.message||e))});
 }
-function closeModal(){ try{ AdPv.hide(); }catch(e){} document.getElementById('ov').classList.remove('show'); S.openId=null; S.navTimeline=false; S.threadOpen=false; Detail.cancelPending(); }
+function closeModal(){ try{ AdPv.hide(); }catch(e){} document.getElementById('ov').classList.remove('show'); S.openId=null; S.navTimeline=false; S.navCtx=null; S.backFrom=null; peekHide(); S.threadOpen=false; Detail.cancelPending(); }
 document.getElementById('ov').addEventListener('click',function(e){ if(e.target.id==='ov') closeModal(); });
 function navKey(e){
   if (!document.getElementById('ov').classList.contains('show')) return false;
@@ -1415,6 +2343,7 @@ function addFbBar(wrap, html){
   wrap.appendChild(bar);
 }
 function renderThread(box, messages){
+  if (S.openId) S.threadMsgs={ id:S.openId, list:messages };
   if (!messages.length){ box.innerHTML='<div class="empty">Mesaj bulunamadı</div>'; return; }
   box.innerHTML='';
   // Panoda son açıştan sonra gelen mesajlar (en yeni en üstte; önceki "görüldü" mesaja kadar olanlar)
@@ -1443,9 +2372,11 @@ function renderThread(box, messages){
     if (imgs.length){
       var at=document.createElement('div'); at.className='atts';
       at.innerHTML = imgs.map(function(im){
-        return im.src ? '<a href="'+esc(im.src)+'" target="_blank" title="'+esc(im.name)+'"><img src="'+esc(im.src)+'" alt="'+esc(im.name)+'"></a>'
+        return im.src ? '<a href="#" class="zimg" title="'+esc(im.name)+' — büyüt"><img src="'+esc(im.src)+'" alt="'+esc(im.name)+'"></a>'
                       : '<div class="ph">🖼 '+esc(im.name)+' (büyük görsel — Gmail\'de aç)</div>';
       }).join('');
+      // Görsele tıklayınca yeni sekme yerine board içinde büyük önizleme (data: adresli görseller yeni sekmede açılmıyor)
+      (function(list){ at.querySelectorAll('a.zimg').forEach(function(a,i){ a.onclick=function(e){ e.preventDefault(); imgZoom(list, i); }; }); })(imgs.filter(function(im){ return im.src; }).map(function(im){ return {src:im.src, name:im.name}; }));
       wrap.appendChild(at);
     }
   });
@@ -1482,6 +2413,58 @@ function darkifyMail(doc){
     if (bc && parseFloat(cs.borderTopWidth)>0){ var hc=hsl(bc); if (hc.l>0.7) el.style.setProperty('border-color', css(hc.h,hc.s,0.3), 'important'); }
   }
 }
+// Mail içinde düz metin olarak yazılmış linkleri (https://…, www.…) tıklanabilir yap; mevcut <a> linklerine dokunmaz
+function linkifyDoc(doc){
+  if (!doc || !doc.body) return;
+  var RE=/\b((?:https?:\/\/|www\.)[^\s<>"'`]+)/gi;
+  var walker=doc.createTreeWalker(doc.body, 4 /* NodeFilter.SHOW_TEXT */, null), nodes=[], n;
+  while ((n=walker.nextNode())){
+    if (!n.nodeValue || n.nodeValue.indexOf('http')<0 && n.nodeValue.indexOf('www.')<0) continue;
+    var p=n.parentNode, skip=false;
+    while (p && p!==doc.body){ var t=p.nodeName; if (t==='A'||t==='SCRIPT'||t==='STYLE'||t==='TEXTAREA'){ skip=true; break; } p=p.parentNode; }
+    if (!skip) nodes.push(n);
+  }
+  nodes.forEach(function(node){
+    var txt=node.nodeValue, frag=doc.createDocumentFragment(), last=0, m; RE.lastIndex=0;
+    while ((m=RE.exec(txt))){
+      var url=m[1].replace(/[.,;:!?)\]}>»"']+$/,''); if (!url) continue;
+      if (m.index>last) frag.appendChild(doc.createTextNode(txt.slice(last, m.index)));
+      var a=doc.createElement('a'); a.href=/^www\./i.test(url) ? 'https://'+url : url; a.textContent=url; a.target='_blank'; a.rel='noopener noreferrer';
+      frag.appendChild(a); last=m.index+url.length; RE.lastIndex=last;
+    }
+    if (!last) return;
+    if (last<txt.length) frag.appendChild(doc.createTextNode(txt.slice(last)));
+    node.parentNode.replaceChild(frag, node);
+  });
+  doc.querySelectorAll('a[href]').forEach(function(a){ if(!a.target) a.target='_blank'; a.rel='noopener noreferrer'; });
+}
+// Görsel önizleme (lightbox): ‹ › ile gezinme, Esc / dışına tıkla ile kapanır
+function imgZoom(list, idx){
+  if (!list || !list.length) return;
+  var z=document.getElementById('imgZoom');
+  if (!z){
+    z=document.createElement('div'); z.id='imgZoom';
+    z.innerHTML='<button class="iz-x" title="Kapat (Esc)">×</button><button class="iz-p" title="Önceki">‹</button><figure><img><figcaption></figcaption></figure><button class="iz-n" title="Sonraki">›</button>';
+    document.body.appendChild(z);
+    z.addEventListener('click',function(e){ if(e.target===z || e.target.classList.contains('iz-x')) imgZoomClose(); });
+    z.querySelector('.iz-p').onclick=function(e){ e.stopPropagation(); imgZoomStep(-1); };
+    z.querySelector('.iz-n').onclick=function(e){ e.stopPropagation(); imgZoomStep(1); };
+  }
+  z._list=list; z._i=Math.max(0, Math.min(idx||0, list.length-1)); imgZoomPaint(); z.classList.add('show');
+}
+function imgZoomPaint(){
+  var z=document.getElementById('imgZoom'), it=z._list[z._i];
+  z.querySelector('img').src=it.src; z.querySelector('figcaption').textContent=(it.name||'')+(z._list.length>1?'  ·  '+(z._i+1)+' / '+z._list.length:'');
+  z.querySelector('.iz-p').style.visibility=z._i>0?'visible':'hidden'; z.querySelector('.iz-n').style.visibility=z._i<z._list.length-1?'visible':'hidden';
+}
+function imgZoomStep(d){ var z=document.getElementById('imgZoom'); if(!z||!z.classList.contains('show')) return; var j=z._i+d; if(j<0||j>=z._list.length) return; z._i=j; imgZoomPaint(); }
+function imgZoomClose(){ var z=document.getElementById('imgZoom'); if(z) z.classList.remove('show'); }
+function imgZoomOpen(){ var z=document.getElementById('imgZoom'); return !!(z && z.classList.contains('show')); }
+document.addEventListener('keydown',function(e){
+  if (!imgZoomOpen()) return;
+  if (e.key==='Escape'){ e.preventDefault(); e.stopImmediatePropagation(); imgZoomClose(); }
+  else if (e.key==='ArrowLeft' || e.key==='ArrowRight'){ e.preventDefault(); e.stopImmediatePropagation(); imgZoomStep(e.key==='ArrowLeft'?-1:1); }
+}, true);
 function mailFrame(bodyHtml){
   var f=document.createElement('iframe');
   // Script çalıştırılamaz (allow-scripts yok); yükseklik ölçümü için same-origin açık
@@ -1493,6 +2476,13 @@ function mailFrame(bodyHtml){
     bodyHtml+'</html>';
   var fit=function(){ try{ var h=f.contentDocument.documentElement.scrollHeight; if(h) f.style.height=(h+2)+'px'; }catch(e){} };
   f.addEventListener('load',function(){
+    try{ linkifyDoc(f.contentDocument); }catch(e){}
+    // Mail içindeki görsellere tıklayınca büyük önizleme (linkli görseller linkine gider; küçük ikon/logolar hariç)
+    try{
+      var d=f.contentDocument, pics=[].slice.call(d.querySelectorAll('img')).filter(function(im){ return !im.closest('a[href]') && (im.naturalWidth||im.width)>=120; });
+      pics.forEach(function(im,i){ im.style.cursor='zoom-in'; im.addEventListener('click',function(ev){ ev.preventDefault(); var list=pics.filter(function(x){return (x.naturalWidth||x.width)>=120;}).map(function(x){ return {src:x.currentSrc||x.src, name:x.alt||''}; }); imgZoom(list, list.findIndex(function(x){ return x.src===(im.currentSrc||im.src); })); }); });
+      d.addEventListener('keydown',function(ev){ if(imgZoomOpen() && (ev.key==='Escape'||ev.key==='ArrowLeft'||ev.key==='ArrowRight')){ ev.preventDefault(); ev.stopImmediatePropagation(); if(ev.key==='Escape') imgZoomClose(); else imgZoomStep(ev.key==='ArrowLeft'?-1:1); } }, true);
+    }catch(e){}
     try{ if (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) darkifyMail(f.contentDocument); }catch(e){}
     fit();
     try{ f.contentDocument.querySelectorAll('img').forEach(function(im){ im.addEventListener('load',fit); im.addEventListener('error',fit); }); }catch(e){}
@@ -1504,13 +2494,37 @@ function mailFrame(bodyHtml){
 }
 
 var DISC_RES=[/bu e-?posta(n[ıi]n)? ve (varsa )?ekleri/i,/bu (e-?posta|mesaj|ileti)(n[ıi]n)? (içeriği )?(gizli|özel)/i,/yetkili muhatab/i,/kişisel verilerin (korunması|yetkisiz)/i,/this e-?mail (message )?(and (any|its)|is confidential|may contain|contains)/i,/this (message|communication) (and any|is|may) /i,/(privileged and|strictly) confidential/i,/if you (are not|have received|received) (the |an )?(intended recipient|this (e-?mail|message) in error)/i,/intended (solely |only )?for the (use of the )?(individual|addressee|named)/i,/confidentiality notice|disclaimer:/i,/please consider the environment|yazdırmadan önce/i];
-var SIGN_LINE_RE=/^(t\.?|m\.?|e\.?|tel|gsm|phone|mobile)\s*[:.]?\s*\+?\d|www\.[a-z0-9-]+\.|nurol plaza|büyükdere cd|sarıyer \/ istanbul/i;
+// Sadece tek başına telefon satırı / çıplak alan adı imza sayılır; "LP: https://www.marka.com/..." gibi linkli satırlar asla silinmez
+var SIGN_LINE_RE=/^(?:(?:t|m|f|tel|gsm|phone|mobile|telefon|cep|faks|fax)\s*[:.]\s*|(?:tel|gsm|phone|mobile|telefon)\s+)\+?[\d\s()\-]{7,}$|^(?:https?:\/\/)?www\.[a-z0-9-]+(?:\.[a-z]{2,}){1,3}\/?$/i;
 function foldT(s){ return String(s||'').toLowerCase().replace(/[ıİ]/g,'i').replace(/[şŞ]/g,'s').replace(/[ğĞ]/g,'g').replace(/[üÜ]/g,'u').replace(/[öÖ]/g,'o').replace(/[çÇ]/g,'c').replace(/i̇/g,'i').replace(/[^a-z0-9]/g,''); }
 var SIGNOFFS=['saygilarimla','saygilarimizla','saygilar','iyicalismalar','kolaygelsin','tesekkurler','tesekkurederim','tesekkurederiz','sevgiler','sevgilerimle','gorusmekuzere','bestregards','kindregards','regards','best','thanks','thankyou','cheers','iyigunler','iyihaftalar','iyihaftalardiliyorum','iyicalismalardiliyorum'];
 var BANNERS=['herkeseacik','genel','public','internal','internaluseonly','kisiselveriicermez','sirketici','hizmeteozel','gizli','confidential','siniflandirmagenel','classificationpublic'];
 var QUOTE_SEL=['.gmail_quote_container','.gmail_quote','blockquote[type="cite"]','#appendonsend','#divRplyFwdMsg','.OutlookMessageHeader','#mail-editor-reference-message-container','.yahoo_quoted','.moz-cite-prefix','div[style*="border-top:solid #E1E1E1"]','div[style*="border-top: solid #E1E1E1"]','div[style*="border-top:solid #B5C4DF"]','div[style*="border-top: solid #B5C4DF"]','hr#stopSpelling'];
 var SIG_SEL=['.gmail_signature','[data-smartmail="gmail_signature"]','#Signature','#signature','.signature','#ms-outlook-mobile-signature','div[id^="Signature"]'];
 
+/** İmza kapsayıcısı gerçekten sadece imza mı? (liste/alıntı içermez, kapanış ifadesinden önce kayda değer metin yoktur, aşırı uzun değildir) */
+function sigLooksReal(el){
+  if (el.querySelector('ul,ol,blockquote')) return false;
+  // Kapanış ifadesinden ÖNCE gelen büyük görsel (ekran görüntüsü vb.) → mesaj içeriği; imza logosu küçük olur (≤160px) ya da kapanıştan sonra gelir
+  var so=null; textNodes(el).some(function(t){ if (SIGNOFFS.indexOf(foldT(t.nodeValue.trim()))>=0){ so=t; return true; } return false; });
+  var bigImg=Array.prototype.slice.call(el.querySelectorAll('img')).some(function(im){
+    if (so && (so.compareDocumentPosition(im) & Node.DOCUMENT_POSITION_FOLLOWING)) return false;
+    var w=parseInt(im.getAttribute('width')||'',10)||0, h=parseInt(im.getAttribute('height')||'',10)||0, sz=parseInt(im.getAttribute('size')||'',10)||0;
+    if (sz>40000) return true;
+    if (w||h) return w>160 || h>160;                                  // logo/ikon küçük olur
+    return !/^\s*https?:/i.test(im.getAttribute('src')||'');           // boyutsuz: uzak görsel = imza logosu, gömülü (cid/data) = içerik
+  });
+  if (bigImg) return false;
+  var tns=textNodes(el), before=0;
+  for (var i=0;i<tns.length;i++){
+    var s=tns[i].nodeValue.replace(/\s+/g,' ').trim(); if(!s) continue;
+    if (SIGNOFFS.indexOf(foldT(s))>=0) return before<=60;     // "Teşekkürler," öncesinde mesaj metni varsa bu imza değil, içerik
+    before+=s.length;
+  }
+  var tx=el.textContent.replace(/\s+/g,' ').trim();
+  if (tx.length>700 && !el.querySelector('img,table')) return false;
+  return true;
+}
 function parseDoc(html){ return new DOMParser().parseFromString(String(html||''),'text/html'); }
 function stripDanger(doc){
   doc.querySelectorAll('script,iframe,frame,object,embed,form,input,button,textarea,select,link,meta,base').forEach(function(n){n.remove()});
@@ -1573,6 +2587,7 @@ function splitPlainText(doc){
 function cleanPass(html, light){
   var doc=parseDoc(html), body=doc.body;
   stripDanger(doc);
+  body.querySelectorAll('style').forEach(function(st){ doc.head.appendChild(st); });   // Outlook gövdeye <style> koyar → CSS metni kapanış/uyarı hesaplarını bozmasın
   splitPlainText(doc);
   // 1) Alıntılanmış eski mesajlar (iletilen mailler hariç)
   var first=null;
@@ -1587,6 +2602,7 @@ function cleanPass(html, light){
   var tnsQ=textNodes(body), nrm=function(n){ return n? n.nodeValue.replace(/\s+/g,' ').trim() : ''; };
   tnsQ.some(function(t, qi){
     var s=t.nodeValue.replace(/\s+/g,' ').trim(); if(!s) return false;
+    if (/^-{2,}\s*(forwarded message|iletilen ileti|orijinal ileti)|^begin forwarded message:?$|^iletilen ileti(nin başlangıcı)?:?$/i.test(s)) return true;   // forward: sonrası içerik, alıntı sayma
     if (seen>0){
       // Satırlara bölünmüş alıntı başlığı: "On Mon, … <" + "mail@x.com> wrote:"
       var j2=s+' '+nrm(tnsQ[qi+1]), j3=j2+' '+nrm(tnsQ[qi+2]);
@@ -1606,7 +2622,26 @@ function cleanPass(html, light){
   });
   if (!light){
     // 2) İmza blokları
-    SIG_SEL.forEach(function(sel){ doc.querySelectorAll(sel).forEach(function(el){ if(el!==body) el.remove(); }); });
+    // Ama Outlook bazen mesajın devamını imza alanının (#Signature) İÇİNE koyar (kullanıcı imzanın üstüne/içine yazınca).
+    // Böyle bir "imza" gerçek içerik taşıyorsa bütünüyle silinmez; imza kısmı aşağıdaki kapanış ifadesi (Teşekkürler, …) adımında kırpılır.
+    SIG_SEL.forEach(function(sel){ doc.querySelectorAll(sel).forEach(function(el){ if(el!==body && el.isConnected && sigLooksReal(el)) el.remove(); }); });
+    // 3b) Sondaki yasal uyarı başlığı: öncesinde gerçek metin varsa ve sonrasında iletilen mesaj yoksa başlıktan itibaren kes
+    (function(){
+      var DH=/^(.{0,40}\s)?(e-?posta\s+|e-?mail\s+)?(yasal uyar[ıi]s?[ıi]?|legal notice|legal disclaimer|disclaimer|ki[sş]isel verileri?n?i?z?i? [öo]nemsiyor)(?=$|[\s:.,])/i;   // \b Türkçe ı'da çalışmaz
+      var tns=textNodes(body), seen2=0;
+      for (var k=0;k<tns.length;k++){
+        var tx=tns[k].nodeValue.replace(/\s+/g,' ').trim(); if(!tx) continue;
+        if (seen2>40 && tx.length<90 && DH.test(tx)){
+          var rr=doc.createRange(); rr.setStartBefore(tns[k]); rr.setEndAfter(body.lastChild||body);
+          var restT=rr.toString();
+          var hits=[/gizli/i,/confidential/i,/ki[sş]isel veri/i,/personal data/i,/intended (solely|recipient)/i,/yetkisiz|unauthori[sz]ed/i,/ayd[ıi]nlatma metni|privacy notice/i,/sorumlu tutulamaz|not be liable/i].filter(function(re){ return re.test(restT); }).length;
+          // Kampanya metnindeki "Yasal uyarı: …" içeriğini kesme: sonrası gerçekten kurumsal uyarı olmalı (en az 2 uyarı ifadesi)
+          if (hits>=2 && !/forwarded message|iletilen ileti|original message|(^|\s)(from|gönderen|kimden)\s*:/i.test(restT)) cutAt(doc, tns[k]);
+          return;
+        }
+        seen2+=tx.length;
+      }
+    })();
     // 3) Yasal uyarılar, sınıflandırma bantları, imza satırları (asla tüm mesajı saran kapsayıcıyı silmez)
     var kill=[];
     textNodes(body).forEach(function(t){
@@ -1645,7 +2680,18 @@ function cleanPass(html, light){
     for (var i=tn.length-1;i>=0;i--){
       var s2=tn[i].nodeValue.trim();
       acc-=s2.length;
-      if (SIGNOFFS.indexOf(foldT(s2))>=0 && total-acc-s2.length<=700){ removeFrom(doc, tn[i], false); break; }
+      if (SIGNOFFS.indexOf(foldT(s2))>=0){
+        var after=total-acc-s2.length;
+        var rr=doc.createRange(); rr.setStartAfter(tn[i]); rr.setEndAfter(body.lastChild||body);
+        var rest=rr.toString().replace(/\s+/g,' ').trim(), head=rest.slice(0,500);
+        var fwd=/forwarded message|iletilen ileti|original message|(^|\s)(from|gönderen|kimden)\s*:/i.test(rest);
+        if (fwd) break;                                   // kapanıştan sonra iletilen mesaj var → içerik, kesme
+        if (after<=700){ removeFrom(doc, tn[i], false); break; }
+        // Kalan kısım isim + yasal uyarı / KVKK metniyse (iletilen mesaj ya da yeni içerik değilse) yine kırp
+        var discHits=[/yasal uyar/i,/legal notice/i,/disclaimer/i,/ki[sş]isel veri/i,/gizli (bilgi|tutul)/i,/confidential/i,/intended (solely|recipient)/i,/ayd[ıi]nlatma metni/i,/privacy notice/i,/yetkisiz/i].filter(function(re){ return re.test(rest); }).length;
+        if (discHits>=2 && /yasal uyar|legal notice|disclaimer|bu e-?posta|this e-?mail|gizli|confidential|ki[sş]isel veri/i.test(head)){ removeFrom(doc, tn[i], false); break; }
+        break;
+      }
     }
   }
   // 5) İzleme pikselleri / yüklenemeyen görseller
@@ -1659,7 +2705,8 @@ function cleanPass(html, light){
     while(root.lastChild){
       var n=root.lastChild;
       if (n.nodeType===3 && !n.nodeValue.trim()) { n.remove(); continue; }
-      if (n.nodeType===1 && (n.tagName==='BR' || (!n.textContent.trim() && !n.querySelector('img,table,hr')))) { n.remove(); continue; }
+      if (n.nodeType===1 && /^(IMG|TABLE|HR|VIDEO|PICTURE|SVG|A)$/.test(n.tagName)) break;   // görsel/tablo/link kendisi içeriktir (boş metinli diye silinmez)
+      if (n.nodeType===1 && (n.tagName==='BR' || (!n.textContent.trim() && !n.querySelector('img,table,hr,video,picture,svg')))) { n.remove(); continue; }
       if (n.nodeType===1 && n.lastChild) { var before=n.childNodes.length; trimEnd(n); if(n.childNodes.length!==before) continue; }
       break;
     }
@@ -1698,7 +2745,11 @@ function updateTopDot(){
 }
 
 // ---------- TOPBAR ----------
-document.getElementById('q').addEventListener('input',function(e){ S.q=e.target.value.trim().toLowerCase(); render(); });
+document.getElementById('q').addEventListener('input',function(e){ S.q=e.target.value.trim().toLowerCase(); document.getElementById('qWrap').classList.toggle('has', !!e.target.value); render(); });
+// Arama: × ile ya da Esc ile hızlıca temizle
+function clearSearch(){ var q=document.getElementById('q'); if(!q.value) return false; q.value=''; S.q=''; document.getElementById('qWrap').classList.remove('has'); render(); q.focus(); return true; }
+document.getElementById('qClear').addEventListener('click', clearSearch);
+document.getElementById('q').addEventListener('keydown',function(e){ if(e.key==='Escape' && clearSearch()){ e.preventDefault(); e.stopPropagation(); } });
 document.getElementById('resetCols').onclick=function(){ saveOrder([]); toast('Varsayılan sütun sırası'); };
 document.getElementById('closedToggle').onclick=function(e){ S.showClosed=!S.showClosed; e.target.classList.toggle('on',S.showClosed); render(); };
 document.getElementById('refreshBtn').onclick=function(){ load().then(function(){toast('Yenilendi')}); };
@@ -1717,47 +2768,74 @@ setInterval(function(){
 
 // ---------- DEMO (yalnızca Apps Script dışında önizlemede) ----------
 var DemoApi = {
+  getAttachmentThumbs:function(l){ var o={}; (l||[]).forEach(function(a){ o[a.id]='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60"><rect width="60" height="60" fill="#f59e0b"/></svg>'); }); return o; },
+  getThreadAttachments:function(){ return [{id:'m1|a1',ref:'E1',msgNo:1,name:'flash-1080x1080.jpg',mime:'image/jpeg',size:245000,image:true,from:'Selin',role:'EXTERNAL',date:'2026-10-06T10:00:00Z',snippet:'Bugün 21.30da Flash kampanyası aktif olacak',older:true},{id:'m1|a2',ref:'E2',msgNo:1,name:'brief.pdf',mime:'application/pdf',size:1300000,image:false,from:'Selin',role:'EXTERNAL',date:'2026-10-06T10:00:00Z'},{id:'m2|a1',ref:'E3',msgNo:2,name:'flash-1080x1080.jpg',mime:'image/jpeg',size:260000,image:true,from:'Ayşe',role:'CM',date:'2026-10-06T12:00:00Z',snippet:'güncel görsel ekte'}]; },
+  setJiraProject:function(id,k){ return {key:k,brand:'Demo Marka'}; },
+  _ap:null,
+  _apInit:function(){ if (this._ap) return this._ap; var now=new Date().toISOString();
+    this._ap=[{id:'ap1',threadId:'a1',type:'MAIL',state:'READY',data:{title:'Q4 bütçe artışı onayı',brand:'Örnek Moda',reason:'Marka %20 bütçe artışı için senden onay bekliyor',lastSender:'Marka Kişisi',lastDate:now,to:['marka@ornekmoda.com'],cc:['ayse@sirket.com'],options:[{email:'marka@ornekmoda.com',name:'Marka Kişisi',role:'EXTERNAL'},{email:'ayse@sirket.com',name:'Ayşe',role:'CM'}],text:'Selamlar,\n\nPaylaşılan dağılım uygun, %20 artışı onaylıyorum.\n\nSevgiler,'}},
+      {id:'ap2',threadId:'j1',type:'JIRA_COMMENT',state:'READY',data:{title:'ORNPERF-447 Günlük kontrol',brand:'Örnek Moda',key:'ORNPERF-447',url:'#',reason:'Jira\'da senden bahsedildi',state:'Ayşe kontrol etti, CPC artışı var',people:{'Ayşe Demo':'a1','Burak Demo':'b1'},lastSender:'Ayşe',lastDate:now,text:'@Ayşe Demo CPC artışı olan iki kampanyada teklifleri kontrol edebilir misin?'}}];
+    this._apN=0; return this._ap; },
+  getApprovals:function(){ var a=this._apInit().filter(function(x){ return x.state==='READY'; }); return {items:a.slice(0,5).map(function(x){ return JSON.parse(JSON.stringify(x)); }),limit:5,doneToday:3,busy:false,eligible:a.length+(this._apN<4?2:0),aiBlocked:false}; },
+  refillApprovals:function(){ var a=this._apInit(); if (this._apN>=4) return {added:0,more:false,empty:true}; this._apN++; a.push({id:'apx'+this._apN,threadId:'a2',type:'MAIL',state:'READY',data:{title:'Demo öneri '+this._apN,brand:'Marka G',reason:'Marka geri bildirim bekliyor',lastSender:'Can',lastDate:new Date().toISOString(),to:['can@markag.com'],cc:[],options:[],text:'Selamlar,\n\nRevizeleri yarın iletiyoruz.\n\nSevgiler,'}}); return {added:1,more:true}; },
+  approveApproval:function(id,e){ var it=this._apInit().filter(function(x){return x.id===id;})[0]; if (id==='apx2' && !e.force) return {stale:true,message:'Öneri hazırlandıktan sonra bu konuya yeni mesaj geldi.'}; it.state='DONE'; it.data.text=e.text; window.__apSent=(window.__apSent||[]).concat([[id,e]]); return {ok:true}; },
+  skipApproval:function(id){ this._apInit().forEach(function(x){ if(x.id===id) x.state='SKIPPED'; }); return {ok:true}; },
+  regenApproval:function(id,h){ var it=this._apInit().filter(function(x){return x.id===id;})[0]; it.data.text='Selamlar,\n\n'+(h||'Yeniden yazıldı.')+'\n\nSevgiler,'; return {id:id,threadId:it.threadId,type:it.type,data:JSON.parse(JSON.stringify(it.data))}; },
+  getNewMailContext:function(id){ return {to:['marka@ornekmoda.com'],cc:['ayse@sirket.com'],options:[{email:'marka@ornekmoda.com',name:'Marka Kişisi',role:'EXTERNAL'},{email:'ayse@sirket.com',name:'Ayşe',role:'CM'}],from:'Q4 bütçe artışı onayı',siblings:[{key:'ORNEXP-3182',s:'SM task',team:'SM',why:'benzer başlık'}]}; },
+  prepareNewMail:function(id,h,x){ return {subject:'Örnek Moda x BIZ - Extra 15 Install Kampanyaları',body:'Selamlar,\n\nExtra 15 install kampanyalarını yayına aldık.'+(x&&x.length?' (+'+x.join(',')+')':'')+'\n\nSevgiler,'}; },
+  sendNewMail:function(){ window.__nm=[].slice.call(arguments); return {threadId:'tnew',link:'#'}; },
+  getSiblingTasks:function(j,b){ return {list:[{key:'ORNEXP-3182',s:'ÖRN Export - SM - Katalog Engagement',team:'SM',why:'aynı marka mailine bağlı',auto:true},{key:'ORNEXP-3190',s:'ÖRN Export - SM - Extra 15',team:'SM',why:'benzer başlık'}]}; },
+  getJiraTransitions:function(k){ var st=(DemoApi._jst=DemoApi._jst||{})[k]||'In Progress'; return {key:k,url:'#',status:st,assignee:'Ayşe Demo',transitions:[{id:'11',name:'To Do',to:'To Do'},{id:'21',name:'In Progress',to:'In Progress'},{id:'31',name:'Review',to:'In Review'},{id:'41',name:'Done',to:'Done'}]}; },
+  setJiraStatus:function(k,id){ var m={'11':'To Do','21':'In Progress','31':'In Review','41':'Done'}; (DemoApi._jst=DemoApi._jst||{})[k]=m[id]; return DemoApi.getJiraTransitions(k); },
+  getJiraIssueBrief:function(k){ return {key:k,url:'#',summary:'Demo iş',status:'In Progress',assignee:'Ayşe Demo',commentCount:4,last:{author:'Ayşe Demo',date:'2026-10-05 14:00',text:'Kurulum yapıldı, onay bekliyoruz.'},people:{'Ayşe Demo':'a1','Burak Demo':'b1'}}; },
+  generateJiraComment:function(id,k,h){ return {key:k,url:'#',state:'Kurulum yapılmış, markanın onayı bekleniyor.',comment:'@Ayşe Demo Marka onay verdi, yayına alabiliriz. '+(h||''),reason:'',people:{'Ayşe Demo':'a1'}}; },
+  jiraUserSearch:function(q){ return [{id:'c1',n:'Cem Demo'}]; },
+  refreshAfterReply:function(id){ var k=(S.data.cards||[]).filter(function(x){return x.id===id})[0]; return k?Object.assign({},k,{status:'WAITING_CLIENT',priorityReason:'Cevabında markadan bir şey istedin'}):null; },
   _d:null, _tick:0,
   getBoardData:function(){
     if(!this._d) this._init();
-    return JSON.parse(JSON.stringify(this._d));
+    var d=JSON.parse(JSON.stringify(this._d)); d.planned=JSON.parse(JSON.stringify(DemoApi._pl||{})); return d;
   },
+  scheduleJiraComment:function(k,b,m,a,id,at){ var it={id:'pl'+Date.now(),threadId:id,key:k,at:at,state:'PLANNED',text:b,atts:(a||[]).length,title:(cardById(id)||{}).title||''}; var pl=DemoApi._pl=DemoApi._pl||{}; (pl[id]=pl[id]||[]).push(it); window.__pl=[].slice.call(arguments); return it; },
+  editPlannedComment:function(id,t,at){ var pl=DemoApi._pl||{}, f=null; Object.keys(pl).forEach(function(k){ pl[k].forEach(function(x){ if(x.id===id){ x.text=t; x.at=at; f=x; } }); }); return f; },
+  cancelPlannedComment:function(id){ var pl=DemoApi._pl||{}, f=null; Object.keys(pl).forEach(function(k){ pl[k]=pl[k].filter(function(x){ if(x.id===id){ f=Object.assign({},x,{state:'CANCELED'}); return false; } return true; }); }); return f; },
+  sendPlannedNow:function(id){ var f=DemoApi.cancelPlannedComment(id); f.state='SENT'; return {item:f,res:{key:f.key,url:'#',card:null}}; },
   _init:function(){
     var h=function(x){return new Date(Date.now()-x*3600000).toISOString()};
     var cms=[{name:'Ayşe Yılmaz',email:'ayse@sirket.com'},{name:'Mert Demir',email:'mert@sirket.com'},{name:'Zeynep Kaya',email:'zeynep@sirket.com'},{name:'Can Aksoy',email:'can@sirket.com'}];
-    var mk=function(id,o){return Object.assign({id:id,subject:o.title,msgCount:3,link:'#',participants:'Marka, CM, Deniz',lastSender:'Marka',priorityReason:'',closed:false,aiStatus:o.status,flags:'',remindedAt:'',cmEmail:(cms.find(function(c){return c.name===o.cm})||{}).email||''},o)};
-    var st=['MY_REPLY','WATCH','STALE','CLIENT_STALE','LATER','REMINDED','WAITING_CM','IN_PROGRESS','WAITING_CLIENT','JIRA','COMPLETED','FYI','INTERNAL','AUTO','DONE'];
-    var nm={MY_REPLY:'Hemen Cevapla',WATCH:'Yakın Takip',STALE:'3+ İş Günü Bekleyen',CLIENT_STALE:'Markada 5+ İş Günü',LATER:'Daha Sonra Bak',REMINDED:'Hatırlatma Yapıldı',WAITING_CM:'CM Cevabı Bekleniyor',IN_PROGRESS:'Cevaplandı · İş Devam Ediyor',WAITING_CLIENT:'Markada Bekleyen',JIRA:'Jira',COMPLETED:'İş Tamamlandı',FYI:'Bilgi · Takip',INTERNAL:'Internal · Geniş Dağıtım',AUTO:'Otomatik · Newsletter',DONE:'Done · Okundu'};
+    var mk=function(id,o){return Object.assign({id:id,subject:o.title,msgCount:3,link:'#',participants:'Marka, CM, Deniz',lastSender:'Marka',priorityReason:'',closed:false,aiStatus:o.status,flags:o.status==='JIRA'?'JIRA':'',remindedAt:'',cmEmail:(cms.find(function(c){return c.name===o.cm})||{}).email||''},o)};
+    var st=['MY_REPLY','WATCH','STALE','CLIENT_STALE','LATER','REMINDED','WAITING_CM','ACTION','IN_PROGRESS','WAITING_CLIENT','JIRA','JIRA_WIP','JIRA_DONE','COMPLETED','FYI','INTERNAL','AUTO','DONE'];
+    var nm={MY_REPLY:'Hemen Cevapla',WATCH:'Yakın Takip',STALE:'3+ İş Günü Bekleyen',CLIENT_STALE:'Markada 5+ İş Günü',LATER:'Daha Sonra Bak',REMINDED:'Hatırlatma Yapıldı',WAITING_CM:'CM Cevabı Bekleniyor',ACTION:'Cevaplandı · İşlem Gerekiyor',IN_PROGRESS:'Cevaplandı · İş Devam Ediyor',WAITING_CLIENT:'Markada Bekleyen',JIRA:'Jira · Alınmayı Bekliyor',JIRA_WIP:'Jira · Ekip Yapıyor',JIRA_DONE:'Jira · Ekip Tamamladı',COMPLETED:'İş Tamamlandı',FYI:'Bilgi · Takip',INTERNAL:'Internal · Geniş Dağıtım',AUTO:'Otomatik · Newsletter',DONE:'Done · Okundu'};
     this._d={
       me:'sen@sirket.com', signatureText:'Deniz Yılmaz\nAccount Director\nT. +90 212 000 00 00', slaHours:2, staleDays:3, reminderText:'burada bir gelişme var mı', lastSync:new Date().toISOString(), cms:cms,
       statuses:st.map(function(s){return {id:s,name:nm[s]}}),
       cards:[
-        mk('a1',{title:'Q4 bütçe artışı onayı',brand:'Örnek Marka',cm:'Ayşe Yılmaz',priority:1,status:'MY_REPLY',lastDate:h(3.2),summary:'Marka Q4 için Meta bütçesini %20 artırmak istiyor; Ayşe kanal dağılımını hazırladı, son onay senden bekleniyor. Onay gelirse Kasım başında yeni bütçe ile yayına geçilecek; gecikirse Black Friday öncesi öğrenme dönemi kısalacak.',clientAsk:'Kasım kampanyası için Meta bütçesinin %20 artırılması.',cmResponse:'Ayşe kanal bazlı dağılım tablosunu paylaştı, ROAS projeksiyonu 4.1.',nextAction:'Deniz onay verecek → Ayşe Jira\'da bütçe task\'ı açacak.',suggestedReply:'Selamlar,\n\nPaylaşılan dağılım uygun görünüyor, %20 artışı onaylıyorum. Ayşe, Jira tarafında bütçe güncellemesini başlatabilirsin.\n\nSevgiler,'}),
+        mk('a1',{title:'Q4 bütçe artışı onayı',brand:'Örnek Moda',cm:'Ayşe Yılmaz',priority:1,status:'MY_REPLY',lastDate:h(3.2),summary:'Marka Q4 için Meta bütçesini %20 artırmak istiyor; Ayşe kanal dağılımını hazırladı, son onay senden bekleniyor. Onay gelirse Kasım başında yeni bütçe ile yayına geçilecek; gecikirse Black Friday öncesi öğrenme dönemi kısalacak.',clientAsk:'Kasım kampanyası için Meta bütçesinin %20 artırılması.',cmResponse:'Ayşe kanal bazlı dağılım tablosunu paylaştı, ROAS projeksiyonu 4.1.',nextAction:'Deniz onay verecek → Ayşe Jira\'da bütçe task\'ı açacak.',suggestedReply:'Selamlar,\n\nPaylaşılan dağılım uygun görünüyor, %20 artışı onaylıyorum. Ayşe, Jira tarafında bütçe güncellemesini başlatabilirsin.\n\nSevgiler,'}),
         mk('a2',{title:'Claude kullanım tablosunu doldur',brand:'',cm:'Atanmamış',priority:1,status:'MY_REPLY',lastDate:h(0.6),summary:'AI ekibi tüm account ekibinden Claude kullanım tablosuna birer satır doldurmasını istiyor; son gün 23 Eylül.',nextAction:'Deniz kendi satırını dolduracak.'}),
-        mk('s1',{title:'Konut kampanyaları düzenlemesi',brand:'Sompo Sigorta',cm:'Zeynep Kaya',priority:3,status:'STALE',aiStatus:'WAITING_CM',lastDate:h(24*6),summary:'Sompo konut kampanyalarında hedefleme ve kreatif düzenleme istedi; Zeynep\'ten dönüş yok.',clientAsk:'Konut kampanyalarında bölge hedeflemesinin daraltılması.'}),
-        mk('s2',{title:'Influencer partnership ads planı',brand:'Yağız İzgül',cm:'Mert Demir',priority:3,status:'STALE',aiStatus:'IN_PROGRESS',lastDate:h(24*8),remindedAt:h(30),summary:'Partnership ads kurulum planı paylaşıldı; influencer onayı bekleniyor, 5 iş günüdür hareket yok.'}),
-        mk('r1',{title:'Google App bid düzenlemeleri',brand:'Örnek Marka',cm:'Ayşe Yılmaz',priority:3,status:'REMINDED',followUp:true,remindedAt:h(20),lastDate:h(20),summary:'Kampanya bid esnetmesi için Ayşe\'ye hatırlatma yaptın; dönüş bekleniyor.'}),
-        mk('b1',{title:'2027 dijital strateji sunumu',brand:'Beymen',cm:'Zeynep Kaya',priority:2,status:'WAITING_CM',lastDate:h(20),summary:'Beymen 2027 dijital strateji ve bütçe sunumu talep etti, teslim 15 Ekim. Zeynep henüz dönüş yapmadı.'}),
+        mk('s1',{title:'Konut kampanyaları düzenlemesi',brand:'Marka H',cm:'Zeynep Kaya',priority:3,status:'STALE',aiStatus:'WAITING_CM',lastDate:h(24*6),summary:'Marka H konut kampanyalarında hedefleme ve kreatif düzenleme istedi; Zeynep\'ten dönüş yok.',clientAsk:'Konut kampanyalarında bölge hedeflemesinin daraltılması.'}),
+        mk('s2',{title:'Influencer partnership ads planı',brand:'Mert Kaya',cm:'Mert Demir',priority:3,status:'STALE',aiStatus:'IN_PROGRESS',lastDate:h(24*8),remindedAt:h(30),summary:'Partnership ads kurulum planı paylaşıldı; influencer onayı bekleniyor, 5 iş günüdür hareket yok.'}),
+        mk('r1',{title:'Google App bid düzenlemeleri',brand:'Örnek Moda',cm:'Ayşe Yılmaz',priority:3,status:'REMINDED',followUp:true,remindedAt:h(20),lastDate:h(20),summary:'Kampanya bid esnetmesi için Ayşe\'ye hatırlatma yaptın; dönüş bekleniyor.'}),
+        mk('b1',{title:'2027 dijital strateji sunumu',brand:'Marka F',cm:'Zeynep Kaya',priority:2,status:'WAITING_CM',lastDate:h(20),summary:'Marka F 2027 dijital strateji ve bütçe sunumu talep etti, teslim 15 Ekim. Zeynep henüz dönüş yapmadı.'}),
         mk('c1',{title:'Always on dijital reklamlar',brand:'Örnek Mah.',cm:'Zeynep Kaya',priority:3,status:'IN_PROGRESS',lastDate:h(9),summary:'Eylül always-on kampanyaları yayında; marka görsel revizyonu için teşekkür etti, performans raporu bekleniyor.'}),
-        mk('w1',{title:'ChatGPT reklam ülke önerileri',brand:'Örnek Marka Yurtdışı',cm:'Ayşe Yılmaz',priority:2,status:'WAITING_CLIENT',lastDate:h(30),summary:'Ayşe ülke bazlı ChatGPT kullanım oranlarını ve pilot bütçe önerilerini Marka ekibine iletti; markanın onayı bekleniyor.'}),
-        mk('w2',{title:'Kreatif revizyon onayı',brand:'Paitan',cm:'Can Aksoy',priority:3,status:'WAITING_CLIENT',lastDate:h(5),summary:'Revize görseller markaya gönderildi, geri bildirim bekleniyor.'}),
-        mk('j1',{title:'MRKADS-447 Günlük kontrol',brand:'Örnek Marka',cm:'Ayşe Yılmaz',priority:3,status:'JIRA',lastDate:h(2),msgCount:35,summary:'Selin günlük Google kontrol task\'ına yorum ekledi: bütçe tüketimi normal, 2 kampanyada CPC artışı var.'}),
-        mk('j2',{title:'MRKADS-1989 Pmax video asset',brand:'Örnek Marka',cm:'Ayşe Yılmaz',priority:3,status:'JIRA',lastDate:h(5),msgCount:4,summary:'Ece task durumunu "In Review" olarak güncelledi; yeni video asset\'leri yüklendi.'}),
-        mk('e1',{title:'Black Friday reklamları yayında',brand:'Paitan',cm:'Can Aksoy',priority:3,status:'COMPLETED',lastDate:h(12),summary:'Tüm Black Friday reklamları onaylandı ve yayına alındı.'}),
-        mk('d1',{title:'Apple Ads Looker entegrasyonu',brand:'Beymen',cm:'Atanmamış',priority:3,status:'FYI',lastDate:h(8),msgCount:2,summary:'Beymen Apple Ads verilerinin Looker raporuna eklenmesini istedi; data ekibi işi listesine aldı.'}),
+        mk('w1',{title:'ChatGPT reklam ülke önerileri',brand:'Örnek Moda Yurtdışı',cm:'Ayşe Yılmaz',priority:2,status:'WAITING_CLIENT',lastDate:h(30),summary:'Ayşe ülke bazlı ChatGPT kullanım oranlarını ve pilot bütçe önerilerini ÖRN ekibine iletti; markanın onayı bekleniyor.'}),
+        mk('w2',{title:'Kreatif revizyon onayı',brand:'Marka G',cm:'Can Aksoy',priority:3,status:'WAITING_CLIENT',lastDate:h(5),summary:'Revize görseller markaya gönderildi, geri bildirim bekleniyor.'}),
+        mk('j1',{title:'ORNPERF-447 Günlük kontrol',brand:'Örnek Moda',cm:'Ayşe Yılmaz',priority:3,status:'JIRA',lastDate:h(2),msgCount:35,summary:'Ayşe günlük Google kontrol task\'ına yorum ekledi: bütçe tüketimi normal, 2 kampanyada CPC artışı var.'}),
+        mk('j2',{title:'ORNPERF-1989 Pmax video asset',brand:'Örnek Moda',cm:'Ayşe Yılmaz',priority:3,status:'JIRA_WIP',lastDate:h(5),msgCount:4,summary:'Ece task durumunu "In Review" olarak güncelledi; yeni video asset\'leri yüklendi.'}),
+        mk('e1',{title:'Black Friday reklamları yayında',brand:'Marka G',cm:'Can Aksoy',priority:3,status:'COMPLETED',lastDate:h(12),summary:'Tüm Black Friday reklamları onaylandı ve yayına alındı.'}),
+        mk('d1',{title:'Apple Ads Looker entegrasyonu',brand:'Marka F',cm:'Atanmamış',priority:3,status:'FYI',lastDate:h(8),msgCount:2,summary:'Marka F Apple Ads verilerinin Looker raporuna eklenmesini istedi; data ekibi işi listesine aldı.'}),
         mk('d2',{title:'Ofis taşınma duyurusu',brand:'',cm:'Atanmamış',priority:4,status:'INTERNAL',lastDate:h(30),msgCount:1,summary:'İK: Ekim sonunda yeni ofise taşınma planı.'}),
         mk('d3',{title:'Meta Ads haftalık bülten',brand:'',cm:'Atanmamış',priority:5,status:'AUTO',lastDate:h(40),msgCount:1,summary:'Meta Advantage+ güncellemeleri hakkında otomatik bilgilendirme.'}),
-        mk('f1',{title:'Rapor linki paylaşımı',brand:'Beymen',cm:'Zeynep Kaya',priority:3,status:'DONE',closed:true,lastDate:h(50),summary:'Eylül raporu markayla paylaşıldı.'})
+        mk('f1',{title:'Rapor linki paylaşımı',brand:'Marka F',cm:'Zeynep Kaya',priority:3,status:'DONE',closed:true,lastDate:h(50),summary:'Eylül raporu markayla paylaşıldı.'})
       ]
     };
-    for (var i=0;i<14;i++) this._d.cards.push(mk('x'+i,{title:'Kampanya kurulumu #'+(i+1),brand:'Örnek Marka',cm:'Ayşe Yılmaz',priority:3,status:'IN_PROGRESS',lastDate:h(10+i*3),summary:'Rutin kurulum; ekip yayına hazırlıyor.'}));
+    for (var i=0;i<14;i++) this._d.cards.push(mk('x'+i,{title:'Kampanya kurulumu #'+(i+1),brand:'Örnek Moda',cm:'Ayşe Yılmaz',priority:3,status:'IN_PROGRESS',lastDate:h(10+i*3),summary:'Rutin kurulum; ekip yayına hazırlıyor.'}));
   },
   moveCards:function(ids,st){ var self=this; return ids.map(function(id){ var c=self._d.cards.find(function(x){return x.id===id}); c.status=st; c.closed=(st==='COMPLETED'||st==='DONE'); return JSON.parse(JSON.stringify(c)); }); },
   updateCard:function(id,ch){ var c=this._d.cards.find(function(x){return x.id===id}); if(ch.priority) c.priority=ch.priority; if(ch.cmEmail!==undefined){ var m=this._d.cms.find(function(x){return x.email===ch.cmEmail}); c.cm=m?m.name:'Atanmamış'; c.cmEmail=ch.cmEmail; } return JSON.parse(JSON.stringify(c)); },
   remindCms:function(ids,mode){ var self=this; return {draftsLink:'#', results:ids.map(function(id){ var c=self._d.cards.find(function(x){return x.id===id}); c.remindedAt=new Date().toISOString(); return {id:id,ok:true,card:JSON.parse(JSON.stringify(c))}; })}; },
   getThreadDetail:function(id){
     var img='data:image/svg+xml;base64,'+btoa('<svg xmlns="http://www.w3.org/2000/svg" width="360" height="160"><rect width="360" height="160" rx="12" fill="#2f7cf6"/><text x="24" y="92" font-family="Arial" font-size="26" fill="#fff">Kampanya gorseli</text></svg>');
-    var sig='<div><br></div><div>Saygılarımla,</div><div><b>Mehmet Yıldırım</b></div><div>Data Analytics Director</div><div>T. +90 212 000 00 00</div><div>www.sirket.com</div><div>Örnek Plaza K:5</div><div>Örnek Mah., Örnek Cd.</div><div><img src="'+img+'" width="120"></div>'+
+    var sig='<div><br></div><div>Saygılarımla,</div><div><b>Mehmet Yıldırım</b></div><div>Data Analytics Director</div><div>T. +90 212 000 00 00</div><div>www.sirket.com</div><div>Örnek Plaza / B Blok K:14</div><div>Örnek Mah., Örnek Cd.</div><div><img src="'+img+'" width="120"></div>'+
       '<p style="font-size:10px;color:#999">Bu e-posta ve ekleri gönderilen kişi veya kurum ile gönderildiği kişi veya kuruma ait özel, gizli veya yasak bilgiler içeriyor olabilir. İletinin yetkili muhatabı değilseniz iletiyi saklamayınız.</p>';
     return {messages:[
       {from:'Ayşe Yılmaz',role:'CM',date:new Date(Date.now()-3600000*5).toISOString(),html:'<div>Deniz Bey merhaba,</div><div><br></div><div>Dağılım tablosu aşağıda. <b>Kritik nokta:</b> Meta payı <span style="color:#e5484d">%55</span>.</div><ul><li>Meta: 550K</li><li>Google: 450K</li></ul><div><img src="'+img+'" width="360"></div>'+sig+'<div class="gmail_quote"><div class="gmail_attr">On Mon, Marka wrote:</div><blockquote>Eski mesaj burada tekrar ediyor</blockquote></div>',images:[{name:'dagilim.png',src:img,size:2000}]},
@@ -1765,6 +2843,18 @@ var DemoApi = {
     ]};
   },
   createReplyDraft:function(){ return '#'; },
+  getMeetingAttendees:function(){ return {meeting:'Demo',eventFound:true,eventTitle:'Demo toplantı',sem:[{email:'ayse@sirket.com',name:'Ayşe'}],others:2,previous:[]}; },
+  forwardMeetingNotes:function(id,to){ return {sent:(to||[]).length}; },
+  getJiraContext:function(){ return {suggest:{SM:{key:'DEMOADS-12',why:'bu mailden açılan task'},Google:{key:'DEMOADS-13',why:'aynı işin Google task\'i'}},suggestKey:'DEMOADS-12',suggestWhy:'bu mailden açılan task',connected:true,site:'https://example.atlassian.net',me:'Demo',project:'DEMOADS',subjectKey:'',recentProjects:['DEMOADS'],projects:[{k:'DEMOADS',n:'Demo [Marketing]'}],people:{'DEMOADS|SM':[{id:'a1',n:'Ayşe Demo'}],'DEMOADS|Google':[{id:'b1',n:'Burak Demo'}]},targets:[{key:'DEMOADS-12',s:'Demo iş'}]}; },
+  jiraConnect:function(){ return {ok:true,name:'Demo'}; }, jiraIssueSearch:function(){ return []; },
+  createJiraIssue:function(id,t,p){ return {key:p+'-101',url:'#'}; }, addJiraComment:function(k,b,m,a,id){ var c=id&&cardById(id)?JSON.parse(JSON.stringify(cardById(id))):null; if(c&&/JIRA/.test(c.flags||'')){ c.status=/@/.test(b)?'WAITING_CM':'IN_PROGRESS'; c.priorityReason='Jira yorumunda işi ekibe verdin, dönüşleri bekleniyor ('+k+')'; } return {key:k,url:'#',card:c||null,effect:c?'DELEGATED':''}; },
+  getBrandThreadCandidates:function(id){ return {key:'GRPADS-2219',summary:'Q4 bütçe artışı',status:'In Progress',pick:'a1',list:[{id:'a1',subject:'Q4 bütçe artışı onayı',brand:'Örnek Moda',lastDate:new Date().toISOString(),score:40,mapped:true},{id:'a2',subject:'Kasım kampanyası',brand:'Örnek Moda',lastDate:new Date().toISOString(),score:20}]}; },
+  prepareBrandUpdate:function(j,b,h){ return {reply:'Selamlar,\n\nBütçe güncellemesi tamamlandı, yeni bütçe ile yayındayız.'+(h?' '+h:'')+'\n\nSevgiler,',key:'GRPADS-2219',card:null}; },
+  generateJiraText:function(id,h){ return {attachments:DemoApi.getThreadAttachments(),tasks:[{team:'SM',attach:['m2|a1'],relevant:true,title:'Marka - SM - Demo İş - Ekim 2026',body:'Selam,\n\nMeta tarafında demo kampanyasını kurmamız gerekiyor. '+(h||'')+'\n\nBitince buraya yaz, markaya ileteyim.'},{team:'Google',relevant:false,title:'',body:'',reason:'Google tarafında yapılacak bir şey yok.'}]}; },
+  getReplyRecipients:function(){ return {to:['marka@ornek.com'],cc:['ayse@sirket.com'],options:[{email:'marka@ornek.com',name:'Marka Kişisi',role:'EXTERNAL'},{email:'ayse@sirket.com',name:'Ayşe',role:'CM'}]}; },
+  sendReply:function(){ return {link:'#',mode:'draft'}; },
+  getReplyJiraTasks:function(){ return {connected:true, suggest:{SM:{key:'DEMOADS-12',why:'bu mailden açılan task'}}, targets:[{key:'DEMOADS-12',s:'Demo SM task',team:'SM'},{key:'DEMOADS-13',s:'Demo Google task',team:'Google'}]}; },
+  prepareReplyFromJira:function(id,h,k){ window.__rjx=[].slice.call(arguments); return {reply:'Selamlar,\n\nEklemeleri tamamladık (Jira: '+k.join(', ')+').\n\nSevgiler,', keys:k, failed:[]}; },
   generateAiReply:function(id,h){ return 'Selamlar,\n\n'+(h||'Düzenliyoruz.')+'\n\nSevgiler,'; },
   markSeen:function(p){ return (p||[]).length; },
   saveTodo:function(t){ var a=this._d.todos=(this._d.todos||[]); var i=a.findIndex(function(x){return x.id===t.id}); if(i>=0) a[i]=JSON.parse(JSON.stringify(t)); else a.push(JSON.parse(JSON.stringify(t))); return t; },
@@ -1802,12 +2892,262 @@ var NS = 'http://www.w3.org/2000/svg';
 
 function setView(v){
   document.body.classList.toggle('view-an', v==='an');
-  document.getElementById('tabBoard').classList.toggle('on', v!=='an');
+  document.body.classList.toggle('view-ap', v==='ap');
+  document.getElementById('tabBoard').classList.toggle('on', v==='board');
   document.getElementById('tabAn').classList.toggle('on', v==='an');
+  var tap=document.getElementById('tabAp'); if (tap) tap.classList.toggle('on', v==='ap');
+  if (v==='ap') apLoad(false, true);
   if (v==='an'){ if (!AN.data) anLoad(); else anRender(); }
 }
 document.getElementById('tabBoard').onclick=function(){ setView('board'); };
 document.getElementById('tabAn').onclick=function(){ setView('an'); };
+document.getElementById('tabAp').onclick=function(){ setView('ap'); };
+document.getElementById('apReload').onclick=function(){ AP.noMore=false; apLoad(false, true); };
+
+// ---------- ONAYLAR: AI hazırlar, tek tuşla onay (15 sn geri al) ----------
+var AP={ items:[], meta:null, loading:false, filling:false, noMore:false, UNDO:15 };
+function apEl(){ return document.getElementById('apList'); }
+// ============ 🕒 PLANLI JIRA YORUMLARI ============
+function plMap(){ if (!S.data) return {}; if (!S.data.planned) S.data.planned={}; return S.data.planned; }
+function plOf(id){ return plMap()[id]||[]; }
+function plFmt(iso){ var d=new Date(iso); if (isNaN(d)) return ''; return d.toLocaleString('tr-TR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+function plLocalVal(d){ var p=function(x){ return ('0'+x).slice(-2); }; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
+function plSlots(){
+  var n=new Date(), out=[], at=function(d,h){ var x=new Date(d); x.setHours(h,0,0,0); return x; };
+  out.push({t:'1 saat sonra', d:new Date(Date.now()+3600000)});
+  if (n.getHours()<16 && n.getDay()%6) out.push({t:'Bugün 17:00', d:at(n,17)});
+  var w=new Date(n); do { w.setDate(w.getDate()+1); } while (w.getDay()===0 || w.getDay()===6);
+  var tm=new Date(n); tm.setDate(tm.getDate()+1);
+  var lbl=w.toDateString()===tm.toDateString()?'Yarın':['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'][w.getDay()];
+  out.push({t:lbl+' 09:00', d:at(w,9)}); out.push({t:lbl+' 14:00', d:at(w,14)});
+  return out;
+}
+/** Zaman seçici: hızlı seçenekler + tarih/saat. onPick(isoUtc, buton) */
+function plPicker(host, title, onPick){
+  var sl=plSlots();
+  host.style.display='';
+  host.innerHTML='<div><b>🕒 '+esc(title)+'</b> ne zaman Jira\'ya yazılsın?</div>'+
+    '<div class="jx-row" style="margin-top:6px;flex-wrap:wrap">'+sl.map(function(x,i){ return '<button class="pchip" data-i="'+i+'">'+esc(x.t)+'</button>'; }).join('')+'</div>'+
+    '<div class="jx-row" style="margin-top:6px"><input type="datetime-local" class="pl-dt"><button class="btn primary sm pl-go">🕒 Planla</button><button class="btn sm pl-no">Vazgeç</button></div>'+
+    '<div class="meta" style="margin-top:4px">Saatinde otomatik yazılır (birkaç dakika sapabilir). Etiketler ve ekler o an gönderilir; kart durumu da o zaman yorumuna göre güncellenir. Planlı yorumu kartta düzenleyip iptal edebilirsin.</div>';
+  var dt=host.querySelector('.pl-dt'); dt.min=plLocalVal(new Date()); dt.value=plLocalVal(sl[sl.length-2].d);
+  host.querySelectorAll('.pchip').forEach(function(b){ b.onclick=function(){ host.querySelectorAll('.pchip').forEach(function(x){ x.classList.remove('on'); }); b.classList.add('on'); dt.value=plLocalVal(sl[+b.dataset.i].d); }; });
+  host.querySelector('.pl-no').onclick=function(){ host.style.display='none'; host.innerHTML=''; };
+  host.querySelector('.pl-go').onclick=function(){ var d=new Date(dt.value); if (isNaN(d) || d.getTime()<Date.now()+60000){ toast('İleri bir zaman seç'); return; } onPick(d.toISOString(), this); };
+  host.scrollIntoView({block:'nearest', behavior:'smooth'});
+}
+/** Board verisindeki planlı listeyi güncelle (PLANNED/FAILED kalır, diğerleri düşer) */
+function plPut(it){
+  var m=plMap(); Object.keys(m).forEach(function(k){ m[k]=m[k].filter(function(x){ return x.id!==it.id; }); if(!m[k].length) delete m[k]; });
+  if (it.state==='PLANNED' || it.state==='FAILED' || it.state==='SENDING'){ (m[it.threadId]=m[it.threadId]||[]).push(it); m[it.threadId].sort(function(a,b){ return a.at<b.at?-1:1; }); }
+  try { render(); } catch(e){}
+  var oc=S.openId && cardById(S.openId); if (oc) plRenderCard(oc);
+  apPlanRender();
+}
+function plItemHtml(p, showCard){
+  var st=p.state==='FAILED'?' · ⚠️ yazılamadı':p.state==='SENDING'?' · yazılıyor…':'';
+  var acts=p.state==='SENDING'?'':'<div class="jx-row" style="margin-top:4px"><button class="btn sm" data-a="edit">✏️ Düzenle</button><button class="btn sm" data-a="now">'+(p.state==='FAILED'?'↻ Tekrar dene':'Şimdi yaz')+'</button><button class="btn sm" data-a="cancel">İptal</button>'+(showCard?'<button class="btn sm" data-a="open">Kartı aç</button>':'')+'</div>';
+  return '<div class="pl-it'+(p.state==='FAILED'?' failed':'')+'" data-id="'+esc(p.id)+'"><div><b>'+esc(p.key)+'</b> · 🕒 '+esc(plFmt(p.at))+st+(showCard&&p.title?' · <span class="meta">'+esc(p.title)+'</span>':'')+'</div>'+
+    '<div class="pl-tx">'+esc(p.text)+'</div>'+(p.atts?'<div class="meta">📎 '+p.atts+' ek</div>':'')+(p.error?'<div class="meta">⚠️ '+esc(p.error)+'</div>':'')+acts+'</div>';
+}
+function plFindItem(id){ var m=plMap(), f=null; Object.keys(m).forEach(function(k){ m[k].forEach(function(x){ if(x.id===id) f=x; }); }); return f; }
+function plBind(host){
+  host.onclick=function(e){
+    var b=e.target.closest('button[data-a]'); if(!b) return;
+    var box=b.closest('.pl-it'), id=box&&box.dataset.id, p=id&&plFindItem(id); if(!p) return;
+    var a=b.dataset.a;
+    if (a==='open'){ if (cardById(p.threadId)) openCard(p.threadId); else toast('Kart panoda değil'); return; }
+    if (a==='cancel'){ b.disabled=true; api('cancelPlannedComment', id).then(function(r){ plPut(r); toast('Planlı yorum iptal edildi'); }).catch(function(e2){ b.disabled=false; toast('İptal edilemedi: '+(e2.message||e2)); }); return; }
+    if (a==='now'){ b.disabled=true; b.textContent='Yazılıyor…';
+      api('sendPlannedNow', id).then(function(r){ plPut(r.item);
+        var k=cardById(p.threadId); if (k && r.res && r.res.card){ ['status','aiStatus','priorityReason','followUp','suggestedReply'].forEach(function(f){ if(r.res.card[f]!==undefined) k[f]=r.res.card[f]; }); render(); var se=document.getElementById('mStatus'); if(se && S.openId===p.threadId) se.value=k.status; }
+        toast(p.key+' yorumu yazıldı'); })
+        .catch(function(e2){ toast('Yazılamadı: '+(e2.message||e2)); api('getBoardData').then(function(d){ applyData(d); }).catch(function(){}); }); return; }
+    if (a==='edit'){
+      var tx=box.querySelector('.pl-tx'), d0=new Date(p.at);
+      tx.outerHTML='<textarea class="pl-ed">'+esc(p.text)+'</textarea><div class="jx-row"><input type="datetime-local" class="pl-dt"><button class="btn primary sm" data-x="save">Kaydet</button><button class="btn sm" data-x="back">Vazgeç</button></div>';
+      box.querySelector('.pl-dt').value=plLocalVal(d0<new Date()?new Date(Date.now()+3600000):d0);
+      box.querySelector('[data-x="back"]').onclick=function(ev){ ev.stopPropagation(); plPut(p); };
+      box.querySelector('[data-x="save"]').onclick=function(ev){ ev.stopPropagation(); var sb=this, d=new Date(box.querySelector('.pl-dt').value);
+        if (isNaN(d) || d.getTime()<Date.now()+60000){ toast('İleri bir zaman seç'); return; }
+        sb.disabled=true; api('editPlannedComment', id, box.querySelector('.pl-ed').value, d.toISOString()).then(function(r){ plPut(r); toast('Planlı yorum güncellendi · '+plFmt(r.at)); }).catch(function(e2){ sb.disabled=false; toast('Kaydedilemedi: '+(e2.message||e2)); }); };
+    }
+  };
+}
+function plRenderCard(c){
+  var host=document.getElementById('mPlanList'); if(!host) return;
+  var list=plOf(c.id);
+  if (!list.length){ host.style.display='none'; host.innerHTML=''; return; }
+  host.style.display='';
+  host.innerHTML='<h4>🕒 Planlı Jira yorumları</h4><div class="pl-list">'+list.map(function(p){ return plItemHtml(p, false); }).join('')+'</div>';
+  plBind(host);
+}
+function apPlanRender(){
+  var host=document.getElementById('apPlan'); if(!host) return;
+  var m=plMap(), all=[]; Object.keys(m).forEach(function(k){ all=all.concat(m[k]); });
+  all.sort(function(a,b){ return a.at<b.at?-1:1; });
+  if (!all.length){ host.innerHTML=''; return; }
+  host.innerHTML='<div class="pl-sec"><h3>🕒 Planlı Jira yorumları ('+all.length+')</h3><div class="pl-list">'+all.map(function(p){ return plItemHtml(p, true); }).join('')+'</div></div>';
+  plBind(host);
+}
+function apBadge(){
+  var n=AP.items.filter(function(i){ return !i._done; }).length, el=document.getElementById('apCount');
+  if (el){ el.textContent=n||''; el.classList.toggle('on', n>0); }
+}
+function apLoad(silent, fill){
+  if (AP.loading) return; AP.loading=true;
+  if (!silent && !AP.items.length) apEl().innerHTML='<div class="ap-empty">Öneriler yükleniyor…</div>';
+  api('getApprovals').then(function(r){
+    AP.meta=r;
+    var keep={}; AP.items.forEach(function(i){ keep[i.id]=i; });
+    var next=r.items.map(function(n){ var o=keep[n.id]; if (o){ delete keep[n.id]; return o; } return n; });
+    // gönderilmekte / geri sayımda / az önce gönderilmiş olanlar listede kalsın
+    Object.keys(keep).forEach(function(id){ var o=keep[id]; if (o._pend || o._sending || o._done || o._stale) next.push(o); });
+    AP.items=next;
+    apRender(); if (fill) apFill();
+  }).catch(function(e){ apEl().innerHTML='<div class="ap-empty">Öneriler alınamadı: '+esc(e.message||e)+'</div>'; })
+    .finally(function(){ AP.loading=false; });
+}
+function apLive(){ return AP.items.filter(function(i){ return !i._done; }).length; }
+function apFill(){
+  if (AP.filling || !AP.meta || AP.meta.aiBlocked || AP.noMore) return;
+  if (apLive()>=AP.meta.limit) return;
+  AP.filling=true; apRender();
+  api('refillApprovals').then(function(r){
+    AP.filling=false;
+    if (r.added) apLoad(true, true);
+    else if (r.busy){ apRender(); setTimeout(function(){ apLoad(true, true); }, 15000); }
+    else { AP.noMore=true; apRender(); }
+  }).catch(function(e){ AP.filling=false; AP.noMore=true; apRender(); toast('Öneri hazırlanamadı: '+(e.message||e)); });
+}
+function apRender(){
+  var box=apEl(); if (!box) return;
+  apBadge();
+  var sub=document.getElementById('apSub');
+  if (sub && AP.meta) sub.innerHTML='AI işleri hazırlar, sen tek tuşla onaylarsın · aynı anda en fazla <b>'+AP.meta.limit+'</b> öneri · onaydan sonra '+AP.UNDO+' sn geri alma süresi'+(AP.meta.doneToday?' · son 24 saatte <b>'+AP.meta.doneToday+'</b> onay':'');
+  var em=box.querySelector('.ap-empty'); if (em) em.remove();
+  var ids={}; AP.items.forEach(function(it){ ids[it.id]=1; });
+  box.querySelectorAll('.apc').forEach(function(n){ if (!ids[n.dataset.id]) n.remove(); });
+  box.querySelectorAll('.apc-ph').forEach(function(n){ n.remove(); });
+  AP.items.forEach(function(it){ if (!box.querySelector('.apc[data-id="'+it.id+'"]')) box.appendChild(apNode(it)); });
+  if (AP.filling) box.insertAdjacentHTML('beforeend','<div class="apc-ph">✨ Sıradaki öneri hazırlanıyor… (mail ve Jira okunuyor)</div>');
+  if (!AP.items.length && !AP.filling){
+    var why = AP.meta && AP.meta.aiBlocked ? 'AI şu an kullanılamıyor (Gemini anahtarı / kota). Biraz sonra tekrar dene.' :
+      (AP.meta && AP.meta.eligible ? 'Bekleyen işler için öneri hazırlanamadı ya da hepsini geçtin. Yeni mail gelince yeni öneriler düşer.' : 'Onay bekleyen iş yok. Hemen Cevapla\'ya yeni iş düşünce AI burada hazırlar.');
+    box.insertAdjacentHTML('beforeend','<div class="ap-empty">'+esc(why)+'</div>');
+  }
+}
+function apRcHtml(it){
+  var d=it.data, all=(d.options||[]).slice();
+  [].concat(d.to||[], d.cc||[]).forEach(function(e){ if(!all.some(function(o){return o.email===e})) all.push({email:e,name:'',role:''}); });
+  return all.map(function(o){
+    var st=(d.to||[]).indexOf(o.email)>=0?'to':((d.cc||[]).indexOf(o.email)>=0?'cc':'');
+    return '<button class="rcp '+st+'" data-e="'+esc(o.email)+'" title="'+esc(o.email)+' · tıkla: Kime → Cc → çıkar"><b>'+(st==='to'?'Kime':st==='cc'?'Cc':'+')+'</b> '+esc(o.name||o.email)+(o.role==='EXTERNAL'?' <i>dış</i>':'')+'</button>';
+  }).join('')+'<input class="apc-add" placeholder="e-posta ekle" autocomplete="off">';
+}
+function apNode(it){
+  var d=it.data||{}, jira=it.type==='JIRA_COMMENT';
+  var n=document.createElement('div'); n.className='apc'+(it._done?' done':''); n.dataset.id=it.id;
+  var people=Object.keys(d.people||{});
+  n.innerHTML=
+    '<div class="apc-h"><span class="apc-t'+(jira?' jira':'')+'">'+(jira?'🧩 Jira yorumu · '+esc(d.key||''):'✉️ Maile cevap')+'</span>'+(d.brand?'<span class="brand">'+esc(d.brand)+'</span>':'')+
+      '<span class="ttl">'+esc(d.title||d.subject||'')+'</span><span class="meta">'+esc(d.lastSender||'')+(d.lastDate?' · '+esc(fmtDate(d.lastDate)):'')+'</span>'+
+      ((S.data&&cardById(it.threadId))?'<button class="btn sm apc-open" title="Kartı aç">Kartı aç</button>':'')+'</div>'+
+    '<div class="apc-why">'+(d.reason?'💡 '+esc(d.reason):'')+(jira&&d.state?'<br>📋 '+esc(d.state):'')+(d.aiNote?'<br>ℹ️ '+esc(d.aiNote):'')+'</div>'+
+    (jira ? '<div class="apc-jk rc"><a href="'+esc(d.url||'#')+'" target="_blank" rel="noopener"><b>'+esc(d.key||'')+'</b> ↗</a>'+(people.length?' · Etiketle: '+people.map(function(p){ return '<button class="rcp apc-men" data-n="'+esc(p)+'">@'+esc(p)+'</button>'; }).join(' '):'')+'</div>'
+          : '<div class="rc apc-rc">'+apRcHtml(it)+'</div>')+
+    (d.atts&&d.atts.length?'<div class="meta" style="margin-top:4px">📎 '+d.atts.map(function(a){ return esc(a.ref+' '+a.name); }).join(', ')+' · metindeki [[E#]] satırına görsel gömülür, diğerleri ek olarak gider</div>':'')+
+    '<textarea class="apc-tx">'+esc(d.text||'')+'</textarea>'+
+    '<div class="ai-row"><input class="apc-hint" placeholder="Not ile yeniden yaz (opsiyonel): ör. Cuma teslim de" autocomplete="off"><button class="btn sm apc-re">✨ Yeniden yaz</button><button class="btn sm apc-th">Konuşmayı göster</button></div>'+
+    '<div class="msgs apc-msgs" style="display:none"></div>'+
+    '<div class="apc-act"></div>';
+  var ta=n.querySelector('.apc-tx');
+  var fit=function(){ ta.style.height='auto'; ta.style.height=Math.min(Math.max(ta.scrollHeight+4,120),520)+'px'; };
+  setTimeout(fit,0); ta.addEventListener('input',function(){ d.text=ta.value; fit(); });
+  var op=n.querySelector('.apc-open'); if (op) op.onclick=function(){ openCard(it.threadId); };
+  // alıcılar: tık Kime → Cc → çıkar
+  var bindRc=function(){
+    var rc=n.querySelector('.apc-rc'); if(!rc) return;
+    rc.querySelectorAll('.rcp').forEach(function(b){ b.onclick=function(){ var e=b.dataset.e; d.to=d.to||[]; d.cc=d.cc||[]; var i=d.to.indexOf(e), j=d.cc.indexOf(e);
+      if(i>=0){ d.to.splice(i,1); d.cc.push(e); } else if(j>=0){ d.cc.splice(j,1); } else d.to.push(e); rc.innerHTML=apRcHtml(it); bindRc(); }; });
+    var inp=rc.querySelector('.apc-add'); if (inp) inp.onkeydown=function(ev){ if(ev.key==='Enter'||ev.key===','){ ev.preventDefault(); var v=inp.value.trim().toLowerCase().replace(/[,;]$/,''); if(/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)){ d.to=d.to||[]; if(d.to.indexOf(v)<0) d.to.push(v); rc.innerHTML=apRcHtml(it); bindRc(); } else toast('Geçerli bir e-posta yaz'); } };
+  };
+  bindRc();
+  n.querySelectorAll('.apc-men').forEach(function(b){ b.onclick=function(){ var t='@'+b.dataset.n+' ', p=ta.selectionStart||0; if (ta.value.indexOf('@'+b.dataset.n)>=0){ toast('Zaten etiketli'); return; } ta.value=ta.value.slice(0,p)+t+ta.value.slice(p); d.text=ta.value; ta.focus(); fit(); }; });
+  // konuşma
+  var thb=n.querySelector('.apc-th'), mb=n.querySelector('.apc-msgs');
+  thb.onclick=function(){
+    if (mb.style.display!=='none'){ mb.style.display='none'; thb.textContent='Konuşmayı göster'; return; }
+    mb.style.display=''; thb.textContent='Konuşmayı gizle'; mb.innerHTML='<div class="meta">Mail yükleniyor…</div>';
+    var k=S.data&&cardById(it.threadId);
+    (k ? Detail.get(k) : api('getThreadDetail', it.threadId)).then(function(r){
+      var keepT=S.threadMsgs, keepN=S.openNew, keepO=S.openId; S.openNew=null; S.openId=null;
+      try { renderThread(mb, (r&&r.messages)||[]); } finally { S.threadMsgs=keepT; S.openNew=keepN; S.openId=keepO; }
+    }).catch(function(e){ mb.innerHTML='<div class="meta">Mail alınamadı: '+esc(e.message||e)+'</div>'; });
+  };
+  // yeniden yaz
+  var re=n.querySelector('.apc-re'), hint=n.querySelector('.apc-hint');
+  hint.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); re.click(); } };
+  re.onclick=function(){
+    if (it._pend||it._sending) return;
+    re.disabled=true; re.textContent='Yazılıyor…'; ta.disabled=true;
+    api('regenApproval', it.id, hint.value||'').then(function(r){ it.data=r.data; it._stale=false; var nn=apNode(it); n.replaceWith(nn); })
+      .catch(function(e){ toast('Yeniden yazılamadı: '+(e.message||e)); re.disabled=false; re.textContent='✨ Yeniden yaz'; ta.disabled=false; });
+  };
+  apActs(it, n);
+  return n;
+}
+function apActs(it, n){
+  var a=n.querySelector('.apc-act'); if(!a) return;
+  var lock=function(on){ n.querySelectorAll('textarea,input,.apc-re,.rcp').forEach(function(x){ x.disabled=on; }); };
+  if (it._done){ a.innerHTML='<div class="apc-pend">✅ '+esc(it._doneMsg||'Gönderildi')+'</div>'; lock(true); return; }
+  if (it._sending){ a.innerHTML='<div class="apc-pend">📤 Gönderiliyor…</div>'; lock(true); return; }
+  if (it._pend){
+    var left=it._pend.left;
+    a.innerHTML='<div class="apc-pend"><span>⏳ <b>'+left+'</b> sn sonra '+(it.type==='JIRA_COMMENT'?'Jira\'ya yazılacak':'gönderilecek')+'</span><span class="bar"><i style="width:'+Math.round(100*left/AP.UNDO)+'%"></i></span><button class="btn sm apc-undo">↶ Geri al</button></div>';
+    a.querySelector('.apc-undo').onclick=function(){ clearInterval(it._pend.timer); it._pend=null; lock(false); apActs(it, n); toast('Geri alındı'); };
+    lock(true); return;
+  }
+  lock(false);
+  if (it._stale){
+    a.innerHTML='<div class="apc-pend">⚠️ '+esc(it._stale)+' <span class="spacer"></span><button class="btn sm apc-force">Yine de gönder</button><button class="btn sm apc-regen">✨ Yeni mesaja göre yeniden hazırla</button><button class="btn sm apc-skip">✕ Geç</button></div>';
+    a.querySelector('.apc-force').onclick=function(){ apApprove(it, n, true); };
+    a.querySelector('.apc-regen').onclick=function(){ it._stale=null; n.querySelector('.apc-re').click(); };
+    a.querySelector('.apc-skip').onclick=function(){ apSkip(it, n); };
+    return;
+  }
+  a.innerHTML='<div class="apc-a"><button class="btn primary apc-ok">✓ Onayla ve '+(it.type==='JIRA_COMMENT'?'Jira\'ya yaz':'gönder')+'</button><button class="btn apc-skip" title="Bu mesaj için öneriyi kaldır; yeni mesaj gelirse tekrar önerilir">✕ Geç</button><span class="spacer"></span><span class="meta">'+(it.type==='JIRA_COMMENT'?'@ ile etiketlenenlere Jira bildirim gönderir':((it.data.to||[]).length+(it.data.cc||[]).length)+' kişiye gidecek')+'</span></div>';
+  a.querySelector('.apc-ok').onclick=function(){ apApprove(it, n, false); };
+  a.querySelector('.apc-skip').onclick=function(){ apSkip(it, n); };
+}
+function apApprove(it, n, force){
+  var d=it.data, ta=n.querySelector('.apc-tx'); d.text=ta.value;
+  if (!String(d.text||'').trim()){ toast('Metin boş'); return; }
+  if (it.type==='MAIL' && !(d.to||[]).length){ toast('En az bir "Kime" alıcısı seç'); return; }
+  it._stale=null;
+  var go=function(){
+    it._pend=null; it._sending=true; apActs(it, n);
+    var edits={ text:d.text, force:!!force }; if (it.type==='MAIL'){ edits.to=d.to; edits.cc=d.cc||[]; } else edits.key=d.key;
+    api('approveApproval', it.id, edits).then(function(r){
+      it._sending=false;
+      if (r.stale){ it._stale=r.message||'Bu konuya yeni mesaj geldi.'; apActs(it, n); return; }
+      it._done=true; it._doneMsg=it.type==='JIRA_COMMENT' ? (d.key+' yorumu yazıldı') : 'Gönderildi';
+      if (r.card && S.data){ var k=cardById(it.threadId); if (k) Object.keys(r.card).forEach(function(f){ if (r.card[f]!==undefined) k[f]=r.card[f]; }); try{ render(); }catch(e){} }
+      n.classList.add('done'); apActs(it, n); apBadge();
+      setTimeout(function(){ AP.items=AP.items.filter(function(x){ return x!==it; }); n.remove(); apRender(); }, 2500);
+      AP.noMore=false; apLoad(true, true);          // sıradaki öneri arkadan hazırlansın
+    }).catch(function(e){ it._sending=false; apActs(it, n); toast('Gönderilemedi: '+(e.message||e)); });
+  };
+  it._pend={ left:AP.UNDO };
+  it._pend.timer=setInterval(function(){ if(!it._pend) return; it._pend.left--; if (it._pend.left<=0){ clearInterval(it._pend.timer); go(); } else apActs(it, n); },1000);
+  apActs(it, n);
+}
+function apSkip(it, n){
+  AP.items=AP.items.filter(function(x){ return x!==it; }); n.remove(); apRender();
+  api('skipApproval', it.id).then(function(){ AP.noMore=false; apLoad(true, true); }).catch(function(){});
+}
+// Sayfa açılınca rozet için öneri sayısını al (yeni öneri üretmez)
+setTimeout(function(){ try{ apLoad(true, false); }catch(e){} }, 2500);
 
 function anLoad(){
   if (AN.loading) return; AN.loading=true;
@@ -1885,7 +3225,7 @@ function anCompute(){
   var total=0;
   (AN.data.rows||[]).forEach(function(r){
     var d=new Date(r[0]); if (isNaN(d) || d<from || d>=toEnd) return;
-    if (AN.scope==='work' && (r[2]==='AUTO' || r[2]==='INTERNAL' || r[2]==='JIRA')) return;   // iş mailleri: otomatik, iç duyuru ve Jira bildirimleri hariç
+    if (AN.scope==='work' && (r[2]==='AUTO' || r[2]==='INTERNAL' || /^JIRA/.test(r[2]||''))) return;   // iş mailleri: otomatik, iç duyuru ve Jira bildirimleri hariç
     var si=idx[r[1]||'']; if (si===undefined) return;          // atanmamış → sayılmaz
     var pi=pIdx[+pStart(d,g)]; if (pi===undefined) return;
     counts[si][pi]++; total++;
@@ -2035,7 +3375,22 @@ function anTable(box, m){
 }
 
 if (DEMO) document.getElementById('demoBar').style.display='block';
-load();
+// ---------- Hafif mail görüntüleyici (?thread=<id>): sadece konuşma, Gmail yüklenmez ----------
+function openViewer(tid, me){
+  document.body.classList.add('viewer');
+  var v=document.createElement('div'); v.id='viewer';
+  var glink='https://mail.google.com/mail/?authuser='+encodeURIComponent(me||'')+'#all/'+encodeURIComponent(tid);
+  v.innerHTML='<div class="vw-top"><h2 id="vwSubj">Yükleniyor…</h2><a class="btn sm" href="'+esc(glink)+'" target="_blank" rel="noopener">Gmail\'de aç ↗</a></div><div class="msgs" id="vwMsgs">'+
+    [0,1].map(function(){ return '<div class="msk"><div class="sk" style="height:10px;width:35%"></div><div class="sk" style="height:10px;width:92%"></div><div class="sk" style="height:10px;width:70%"></div></div>'; }).join('')+'</div>';
+  document.body.appendChild(v);
+  api('getThreadDetail', tid).then(function(d){
+    var ms=d.messages||[]; var subj=(d.subject||(ms[0]&&ms[0].subject)||'');
+    document.getElementById('vwSubj').textContent=subj||'Konuşma'; document.title=subj||'Mail';
+    renderThread(document.getElementById('vwMsgs'), ms);
+  }).catch(function(e){ document.getElementById('vwMsgs').innerHTML='<div class="empty">Açılamadı: '+esc(e.message||e)+'</div>'; });
+}
+if (!DEMO && google.script.url) google.script.url.getLocation(function(loc){ var p=(loc&&loc.parameter)||{}; if (p.thread) openViewer(p.thread, p.u); else load(); });
+else load();
 </script>
 </body>
 </html>

@@ -31,6 +31,8 @@ Claude skill'i kaydetmen için bir kart gösterir (tek tık), ardından birkaç 
 | `assets/Setup.gs` | Otomatik kurulum ve ilk açılış sayfası |
 | `assets/Board.html` | Board arayüzü |
 | `assets/Style.gs` | Elle yazı avatarı (normalde boş) |
+| `assets/Approvals.gs` | Onaylar sayfası: AI cevap/Jira yorumu önerileri, tek tuşla onay (15 sn geri al) |
+| `assets/Planned.gs` | Planlı Jira yorumları (saatinde otomatik yazılır) |
 | `assets/appsscript.json` | Manifest |
 | `scripts/clasp-auth.mjs` | clasp girişi (iki adım) |
 | `references/` | Örnek iş akışı, geliştirme notları, elle kurulum rehberi |

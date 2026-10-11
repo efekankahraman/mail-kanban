@@ -23,6 +23,7 @@ var SHEET_SETTINGS = 'Ayarlar';
 var SHEET_CMS = 'ClientManagers';
 var SHEET_LOG = 'Log';
 var SHEET_TODOS = 'Todos';
+var SHEET_JIRA = 'JiraProjeleri';   // marka → Jira projesi eşleştirmesi (elle düzenlenebilir; board'dan seçince güncellenir)
 var SHEET_SEEN = 'Seen';     // panoda açıp gördüğün kartlar: threadId → o an gördüğün son mesaj
 
 var LABEL_ROOT = 'Board';
@@ -34,6 +35,8 @@ var PRIORITY_LABELS = {
   5: 'Board/5 - Otomatik & Bilgi'
 };
 var JIRA_LABEL = 'Board/Jira';
+// Gmail'de görünen durum label'ları (Gmail aramasında: label:board-hemen-cevapla, label:board-yakin-takip)
+var STATUS_LABELS = { MY_REPLY: 'Board/Hemen Cevapla', WATCH: 'Board/Yakin Takip', ACTION: 'Board/Islem Gerekiyor' };
 var PRIORITY_NAMES = {
   1: 'Bana Direkt',
   2: 'Büyük Brief / Davet',
@@ -43,7 +46,8 @@ var PRIORITY_NAMES = {
 };
 
 // Kanban kolonları (sıra = board'daki sıra)
-var STATUSES = ['MY_REPLY', 'WATCH', 'STALE', 'CLIENT_STALE', 'LATER', 'REMINDED', 'WAITING_CM', 'IN_PROGRESS', 'WAITING_CLIENT', 'JIRA', 'COMPLETED', 'FYI', 'INTERNAL', 'AUTO', 'DONE'];
+var STATUSES = ['MY_REPLY', 'WATCH', 'STALE', 'CLIENT_STALE', 'LATER', 'REMINDED', 'WAITING_CM', 'ACTION', 'IN_PROGRESS', 'WAITING_CLIENT', 'JIRA', 'JIRA_WIP', 'JIRA_DONE', 'COMPLETED', 'FYI', 'INTERNAL', 'AUTO', 'DONE'];
+function isJiraStatus_(s) { return /^JIRA(_WIP|_DONE)?$/.test(String(s || '')); }
 var STATUS_NAMES = {
   MY_REPLY: 'Hemen Cevapla',
   WATCH: 'Yakın Takip',
@@ -52,9 +56,12 @@ var STATUS_NAMES = {
   LATER: 'Daha Sonra Bak',
   REMINDED: 'Hatırlatma Yapıldı',
   WAITING_CM: 'CM Cevabı Bekleniyor',
+  ACTION: 'Cevaplandı · İşlem Gerekiyor',
   IN_PROGRESS: 'Cevaplandı · İş Devam Ediyor',
   WAITING_CLIENT: 'Markada Bekleyen',
-  JIRA: 'Jira',
+  JIRA: 'Jira · Alınmayı Bekliyor',
+  JIRA_WIP: 'Jira · Ekip Yapıyor',
+  JIRA_DONE: 'Jira · Ekip Tamamladı',
   COMPLETED: 'İş Tamamlandı',
   FYI: 'Bilgi · Takip',
   INTERNAL: 'Internal · Geniş Dağıtım',
@@ -62,6 +69,9 @@ var STATUS_NAMES = {
   DONE: 'Done · Okundu'
 };
 var CLOSED_STATUSES = ['COMPLETED', 'DONE'];
+// Elle yönetilen sütunlar: kart buraya sadece kullanıcı taşır; okunsa da, yeni mesaj gelse de o çıkarana kadar kalır
+var STICKY_STATUSES = ['WATCH', 'ACTION'];
+function isSticky_(s) { return STICKY_STATUSES.indexOf(String(s || '')) >= 0; }
 var STALE_SOURCE = ['WAITING_CM', 'IN_PROGRESS'];
 
 var COLS = [
@@ -91,9 +101,13 @@ var PERSONAL = {
   HIDDEN_COLUMNS: '',                    // gizlenecek kolon kodları, virgülle (ör. STALE, REMINDED, JIRA)
   COLUMN_NAMES: '',                      // kolon adlarını değiştir: "WAITING_CM=Ekip Cevabı Bekleniyor; JIRA=Asana"
   JIRA_PATTERNS: 'atlassian.net, jira@',
+  JIRA_SITE: '',                         // Board'dan task açmak için Jira adresi, ör. https://firma.atlassian.net
+  JIRA_TEAM_LABELS: '',                  // ör. 'SM=Sosyal_Medya, Google=Google_Ads'
   STALE_BUSINESS_DAYS: '3',
   REMIND_WAIT_BUSINESS_DAYS: '2',
   REMINDER_TEXT: 'burada bir gelişme var mı',
+  FILTER_BY: 'KISI',                    // Board filtresi: KISI (ekip üyelerine göre) | MARKA (markalara göre; account manager'lar için)
+  BRANDS: '',                           // MARKA filtresi için: "Marka=domain.com,domain2.com; Marka2=marka2.com" (domain eşleşen mail o markaya yazılır)
   READ_CLOSES: 'EVET',                  // Gmail'de okunan mail board'da Done olsun mu? (standart: EVET — takip edilen her şey Gmail'de okunmamış durur)
   REPLY_OPENING: 'Selamlar,',
   REPLY_CLOSING: 'Sevgiler,',
@@ -123,7 +137,7 @@ var DEFAULT_SETTINGS = [
   ['REPLY_CLOSING', PERSONAL.REPLY_CLOSING, 'Cevap taslağı kapanışı (imza otomatik eklenir)'],
   ['REPLY_TONE', PERSONAL.REPLY_TONE, 'Cevap taslağı üslubu'],
   ['GEMINI_MODEL', 'gemini-3.8-flash', 'Ana model. Hata verirse FALLBACK_MODEL denenir'],
-  ['FALLBACK_MODEL', 'gemini-3.5-flash-lite', 'Yedek model'],
+  ['FALLBACK_MODEL', 'gemini-3.5-flash-lite', 'Yedek model(ler), virgülle. Bunlar da olmazsa hesabında açık olan diğer Flash modelleri otomatik denenir'],
   ['LOOKBACK_DAYS', '14', 'Kaç günlük okunmamış mail taransın'],
   ['MAX_THREADS_PER_RUN', '80', 'Bir çalışmada en fazla kaç thread AI ile işlensin (paralel işlenir)'],
   ['AI_PARALLEL', '8', 'Aynı anda kaç Gemini isteği gönderilsin'],
@@ -131,10 +145,19 @@ var DEFAULT_SETTINGS = [
   ['DISTRIBUTION_PATTERNS', 'all@, tum@, tumu@, herkes@, team@, ekip@, internal@, everyone@, staff@, duyuru@', 'Dağıtım listesi adres parçaları'],
   ['IGNORE_BRANDS', PERSONAL.IGNORE_BRANDS, 'Artık bakmadığın markalar: sana direkt hitap etmiyorsa mail okundu yapılır, board\'a gelmez'],
   ['JIRA_PATTERNS', PERSONAL.JIRA_PATTERNS, 'Jira bildirim göndereni (adres parçası)'],
+  ['JIRA_TEAMS', PERSONAL.JIRA_TEAMS || '', 'Board\'dan açılan Jira task\'lerinin Teams alanı (virgülle birden fazla, boşsa eklenmez)'],
+  ['JIRA_TEAMS_FIELD', PERSONAL.JIRA_TEAMS_FIELD || '', 'Jira\'daki Teams alanının ID\'si (ör. customfield_10767)'],
+  ['JIRA_START_FIELD', PERSONAL.JIRA_START_FIELD || '', 'Jira\'daki Start date alanının ID\'si (ör. customfield_10711); Due date her zaman bugün'],
+  ['JIRA_COMMENT_STATUS', PERSONAL.JIRA_COMMENT_STATUS || 'To Do', 'Board\'dan Jira\'ya yorum yazınca task bu duruma alınır (boşsa durum değişmez)'],
+  ['JIRA_COMMENT_DUE_TODAY', 'TRUE', 'Board\'dan Jira\'ya yorum yazınca task\'in Due date\'i bugün yapılır'],
+  ['JIRA_SITE', PERSONAL.JIRA_SITE, 'Board\'dan task açmak / yorum yazmak için Jira adresi (ör. https://firma.atlassian.net)'],
+  ['JIRA_TEAM_LABELS', PERSONAL.JIRA_TEAM_LABELS, 'Ekip → Jira etiketi (ör. SM=Sosyal_Medya, Google=Google_Ads)'],
   ['CLIENT_STALE_DAYS', '5', 'Markada Bekleyen iş bu kadar iş günü cevapsız kalırsa "Markada 5+ İş Günü" kolonuna düşer'],
   ['STALE_BUSINESS_DAYS', PERSONAL.STALE_BUSINESS_DAYS, 'Bu kadar iş gününden fazla hareketsiz kalan iş "3+ İş Günü Bekleyen" kolonuna düşer'],
   ['REMIND_WAIT_BUSINESS_DAYS', PERSONAL.REMIND_WAIT_BUSINESS_DAYS, 'Hatırlatmadan sonra CM bu kadar iş günü dönmezse kart tekrar 3+ İş Günü Bekleyen\'e düşer'],
   ['REMINDER_TEXT', PERSONAL.REMINDER_TEXT, 'CM hatırlatma mailinin metni (birebir gönderilir)'],
+  ['FILTER_BY', PERSONAL.FILTER_BY, 'Board filtresi: KISI (ekip üyeleri) ya da MARKA (takip ettiğin markalar)'],
+  ['BRANDS', PERSONAL.BRANDS, 'Markalar ve mail domainleri: "Marka=domain.com,domain2.com; Marka2=marka2.com"'],
   ['READ_CLOSES', PERSONAL.READ_CLOSES, 'EVET: Gmail\'de okunan mail board\'da Done olur (standart). HAYIR: kartlar sadece board\'dan kapanır'],
   ['P1_SLA_HOURS', '2', 'Hemen Cevapla kartı kaç saat sonra kırmızıya dönsün'],
   ['MARK_READ_ON_CLOSE', 'TRUE', 'Board üzerinden Tamamlandı/Done yapınca Gmail\'de okundu işaretle'],
@@ -157,7 +180,7 @@ var DISCLAIMER_RES = [
 var BANNERS = ['herkese açık', 'genel', 'public', 'internal', 'internal use only', 'kişisel veri içermez', 'şirket içi', 'hizmete özel', 'gizli', 'confidential', 'sınıflandırma: genel', 'classification: public'];
 var BANNER_RE = { test: function (t) { var f = fold_(t); return f.length > 0 && BANNERS.some(function (b) { return fold_(b) === f; }); } };
 var SIGNOFF_RE = /^(saygılarımla|saygılarımızla|saygılar|iyi çalışmalar|kolay gelsin|teşekkürler|teşekkür ederim|teşekkür ederiz|sevgiler|sevgilerimle|görüşmek üzere|best regards|kind regards|regards|best|thanks|thank you|cheers)[\s,.!]*$/i;
-var SIGNATURE_LINE_RE = /^(t\.?|m\.?|e\.?|tel|gsm|phone|mobile)\s*[:.]?\s*\+?\d|www\.[a-z0-9-]+\./i;
+var SIGNATURE_LINE_RE = /^(?:(?:t|m|f|tel|gsm|phone|mobile|telefon|cep|faks|fax)\s*[:.]\s*|(?:tel|gsm|phone|mobile|telefon)\s+)\+?[\d\s()\-]{7,}$|^(?:https?:\/\/)?www\.[a-z0-9-]+(?:\.[a-z]{2,}){1,3}\/?$/i;
 
 // ============================================================
 //  MENÜ & KURULUM
@@ -166,7 +189,10 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('📋 Mail Board')
     .addItem('1) Kurulumu başlat / ayarları güncelle', 'setup')
     .addItem('2) Gemini API key gir', 'promptApiKey')
+    .addItem('Gemini bağlantısını test et', 'testGemini')
     .addItem('3) Otomatik taramayı aç (10 dk) + geçmişi çek', 'installTrigger')
+    .addItem('4) Jira\'yı bağla (API token)', 'promptJira')
+    .addItem('Jira proje eşleştirmesini aç', 'openJiraMap')
     .addSeparator()
     .addItem('Şimdi tara (tam kontrol)', 'syncNowFull')
     .addItem('Açık kartları yeniden sınıfla', 'reclassifyOpen')
@@ -179,8 +205,7 @@ function onOpen() {
 }
 
 function setup() {
-  var ss = null; try { ss = SpreadsheetApp.getActiveSpreadsheet(); } catch (e) {}
-  ss = ss || ss_();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   PropertiesService.getScriptProperties().setProperty('SPREADSHEET_ID', ss.getId());
 
   var st = ss.getSheetByName(SHEET_SETTINGS) || ss.insertSheet(SHEET_SETTINGS);
@@ -216,21 +241,49 @@ function setup() {
   if (lg.getLastRow() < 1) lg.getRange(1, 1, 1, 3).setValues([['Zaman', 'Seviye', 'Mesaj']]).setFontWeight('bold');
 
   ensureLabels_();
-  try { SpreadsheetApp.getUi().alert(
+  SpreadsheetApp.getUi().alert(
     'Kurulum / güncelleme tamam.\n\n' +
     '• "ClientManagers" sayfasında CM\'lerin markalarını ve (varsa) marka mail domainlerini gir.\n' +
     '• "Ayarlar"a yeni anahtarlar eklendi (IGNORE_BRANDS, STALE_BUSINESS_DAYS, REMINDER_TEXT…).\n' +
     '• Apps Script > Services (+) > Gmail API ekli olmalı (KURULUM.md).\n' +
-    '• Eski yanlış sınıflamalar için: menü > "Açık kartları yeniden sınıfla".'); } catch (e) {}
+    '• Eski yanlış sınıflamalar için: menü > "Açık kartları yeniden sınıfla".');
 }
 
 function promptApiKey() {
   var ui = SpreadsheetApp.getUi();
-  var r = ui.prompt('Gemini API Key', 'Google AI Studio\'dan aldığın key\'i yapıştır:', ui.ButtonSet.OK_CANCEL);
-  if (r.getSelectedButton() === ui.Button.OK && r.getResponseText().trim()) {
-    PropertiesService.getScriptProperties().setProperty('GEMINI_API_KEY', r.getResponseText().trim());
-    PropertiesService.getScriptProperties().deleteProperty('AI_ERROR');   // yeni key → eski uyarıyı temizle
-    ui.alert('Kaydedildi.');
+  var r = ui.prompt('Gemini API key',
+    'Key almak 1 dakika sürer:\n' +
+    '1) Bu adresi aç: https://aistudio.google.com/apikey (iş hesabınla giriş yap)\n' +
+    '2) "Create API key" → bir proje seç ya da "Create API key in new project"\n' +
+    '3) Çıkan key\'in yanındaki kopyala simgesine bas (AIza… ile başlar)\n' +
+    '4) Buraya yapıştır ve OK\'e bas. Bağlantıyı hemen test edeceğim.\n\n' +
+    'Ücretsiz key de çalışır: kota dolarsa sistem diğer modelleri dener, olmazsa kartlar "AI bekliyor" rozetiyle gelir ve sonra otomatik sınıflanır.',
+    ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var key = r.getResponseText().trim().replace(/^["']|["']$/g, '');
+  if (!/^AIza[0-9A-Za-z_\-]{30,}$/.test(key)) { ui.alert('Bu bir Gemini API key\'ine benzemiyor (AIza… ile başlamalı). Kopyalarken boşluk ya da eksik karakter kalmış olabilir, tekrar dene.'); return; }
+  var sp = PropertiesService.getScriptProperties();
+  sp.setProperty('GEMINI_API_KEY', key);
+  ['AI_ERROR', 'AI_MODEL_LIST', 'AI_BAD_MODELS', 'AI_COOLDOWN_UNTIL'].forEach(function (k) { sp.deleteProperty(k); });
+  ui.alert(testGemini_());
+}
+/** Menü: Gemini bağlantısını test et */
+function testGemini() { SpreadsheetApp.getUi().alert(testGemini_()); }
+function testGemini_() {
+  var cfg = getConfig_();
+  try {
+    var key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
+    if (!key) return 'Henüz API key girilmemiş. Menü → "2) Gemini API key gir".';
+    var models = geminiModels_(cfg, key);
+    var t = callGemini_('Sadece şu JSON\'u döndür: {"ok": true}', cfg);
+    PropertiesService.getScriptProperties().setProperty('AI_LAST_OK', new Date().toISOString());
+    return '✅ Gemini çalışıyor.\nDenenecek modeller: ' + models.slice(0, 4).join(', ') + (/true/.test(t) ? '' : '\n(Yanıt beklenenden farklı ama bağlantı var.)');
+  } catch (e) {
+    var m = String(e);
+    if (/API_KEY_INVALID|API key not valid|40[01]/.test(m)) return '❌ Key geçersiz görünüyor. aistudio.google.com/apikey sayfasından tekrar kopyalayıp gir.';
+    if (/403|PERMISSION_DENIED/.test(m)) return '❌ Bu key\'in Gemini API izni yok ya da hesabında Gemini kapalı (şirket hesaplarında yönetici kapatmış olabilir). Kişisel bir Google hesabıyla key almayı dene.';
+    if (/429|RESOURCE_EXHAUSTED/.test(m)) return '⚠️ Key doğru ama şu an kota dolu (ücretsiz katman). Sistem kurulumla devam edebilir; kartlar "AI bekliyor" olarak gelir ve kota açılınca sınıflanır. Yoğun kullanım için AI Studio\'da faturalandırmayı açabilirsin.';
+    return '❌ Gemini\'ye bağlanılamadı: ' + m.slice(0, 300);
   }
 }
 
@@ -334,8 +387,15 @@ function getConfig_() {
   cfg.lookback = parseInt(cfg.LOOKBACK_DAYS, 10) || 14;
   cfg.maxPerRun = Math.max(parseInt(cfg.MAX_THREADS_PER_RUN, 10) || 80, 60);
   cfg.parallel = Math.min(Math.max(parseInt(cfg.AI_PARALLEL, 10) || 8, 1), 15);
+  // Son 24 saatte kota (429) görüldüyse küçük partilerle çalış (ücretsiz API key'lerde dakikalık limit düşük)
+  if (Number(PropertiesService.getScriptProperties().getProperty('AI_THROTTLE_UNTIL') || 0) > Date.now()) cfg.parallel = Math.min(cfg.parallel, 3);
   cfg.bfWindow = Math.max(1, parseInt(cfg.BACKFILL_WINDOW_DAYS, 10) || 3);
   cfg.staleDays = parseInt(cfg.STALE_BUSINESS_DAYS, 10) || 3;
+  cfg.filterBy = /^marka/i.test(String(cfg.FILTER_BY || '')) ? 'MARKA' : 'KISI';
+  cfg.brandMap = String(cfg.BRANDS || '').split(/[;\n]/).map(function (x) {
+    var m = x.split('='); var name = String(m[0] || '').trim();
+    return name ? { name: name, domains: String(m[1] || '').split(',').map(function (d) { return lc_(d).trim().replace(/^@/, ''); }).filter(String) } : null;
+  }).filter(Boolean);
   cfg.clientStaleDays = parseInt(cfg.CLIENT_STALE_DAYS, 10) || 5;
   cfg.remindWait = parseInt(cfg.REMIND_WAIT_BUSINESS_DAYS, 10) || 2;
   cfg.reminderText = cfg.REMINDER_TEXT || 'burada bir gelişme var mı';
@@ -517,7 +577,13 @@ function decodePart_(p) {
   (p.headers || []).forEach(function (x) {
     if (lc_(x.name) === 'content-type') { var m = /charset="?([^";\s]+)"?/i.exec(x.value); if (m) cs = m[1]; }
   });
-  try { return Utilities.newBlob(bytes).getDataAsString(cs); } catch (e) { return Utilities.newBlob(bytes).getDataAsString('UTF-8'); }
+  var txt;
+  try { txt = Utilities.newBlob(bytes).getDataAsString(cs); } catch (e) { txt = Utilities.newBlob(bytes).getDataAsString('UTF-8'); cs = 'UTF-8'; }
+  // Bazı mailler charset'i yanlış beyan ediyor (UTF-8 baytları latin-1 diye): "yayÄ±na", "TeÅ\u009fekkÃ¼rler" → UTF-8 ile tekrar çöz
+  if (!/^utf-?8$/i.test(cs) && /[ÃÄÅ][\u0080-\u00BF\u0100-\u017F]/.test(txt)) {
+    try { var u = Utilities.newBlob(bytes).getDataAsString('UTF-8'); if (u.indexOf('\uFFFD') < 0) return u; } catch (e) {}
+  }
+  return txt;
 }
 
 /** Gmail araması → thread sarmalayıcıları (thread'ler ancak kullanılınca indirilir) */
@@ -580,9 +646,11 @@ function removeBoardLabels_(thread) {
 
 function applyBoardLabels_(thread, row, cfg) {
   var target = [];
-  if (row.status === 'JIRA' || row.aiStatus === 'JIRA') target.push(labelId_(JIRA_LABEL));
+  if (isJiraStatus_(row.status) || isJiraStatus_(row.aiStatus)) target.push(labelId_(JIRA_LABEL));
   else target.push(labelId_(PRIORITY_LABELS[row.priority] || PRIORITY_LABELS[5]));
   if (row.cm && row.cm !== 'Atanmamış') target.push(labelId_(LABEL_ROOT + '/CM/' + row.cm));
+  // Durum label'ları: Gmail'den (ör. Grok Bot'un Gmail bağlantısı) board durumunu görmek için
+  if (STATUS_LABELS[row.status]) target.push(labelId_(STATUS_LABELS[row.status]));
   var board = boardLabelIds_();
   var current = thread._msgs ? thread.labelIds() : board;
   var remove = current.filter(function (l) { return board.indexOf(l) >= 0 && target.indexOf(l) < 0; });
@@ -627,7 +695,7 @@ function syncMail() {
     if (hist) {
       hist.readIds.forEach(function (id) {
         var row = db.byId[id];
-        if (!cfg.readCloses || !row || isTrue_(row.closed) || isTrue_(row.followUp) || row.manualStatus === 'WATCH' || hist.changedIds.indexOf(id) >= 0) return;
+        if (!cfg.readCloses || !row || isTrue_(row.closed) || isTrue_(row.followUp) || isSticky_(row.manualStatus) || hist.changedIds.indexOf(id) >= 0) return;
         try {
           var th = apiThread_(id);
           if (th && !th.isUnread()) {
@@ -708,6 +776,7 @@ function syncMail() {
         if (!ai && w.row && w.row.lastMsgId === w.facts.lastMsgId && String(w.row.flags || '').indexOf('AI_PENDING') < 0) return;
         try {
           var newRow = processThread_(w.th, w.facts, cfg, w.row, ai || heuristicAi_(w.facts));
+          meetingNotesOverride_(newRow, w.facts.lastSenderEmail, w.facts.subject);
           if (ai) {
             // Thread hafızası + önbellek sadece AI yeni mesajları gerçekten okuduysa ilerler
             newRow.memory = String(ai.memory || (w.row && w.row.memory) || '').slice(0, 12000);
@@ -722,9 +791,9 @@ function syncMail() {
           // Takip: 3+ iş günü bekleyen (ya da hatırlatılmış) karta SEN yazdıysan → Hatırlatma Yapıldı.
           // Başka biri (CM) yazdıysa takip biter, kart normal akışa döner.
           var prevFollow = w.row && (w.row.status === 'STALE' || w.row.status === 'REMINDED' || isTrue_(w.row.followUp));
-          if (w.row && w.row.manualStatus === 'WATCH' && !isTrue_(w.row.closed)) {
+          if (w.row && isSticky_(w.row.manualStatus) && !isTrue_(w.row.closed)) {
             // Yakın Takip: senin takibe aldığın kart, yeni mesaj gelse de okunsa da burada kalır (sen çıkarana kadar)
-            newRow.status = 'WATCH'; newRow.manualStatus = 'WATCH'; newRow.followUp = false;
+            newRow.status = w.row.manualStatus; newRow.manualStatus = w.row.manualStatus; newRow.followUp = false;
             newRow.closed = false; newRow.closedAt = ''; newRow.closedBy = '';
           } else if (prevFollow && w.facts.lastSenderRole === 'ME') {
             newRow.status = 'REMINDED'; newRow.followUp = true; newRow.remindedAt = w.facts.lastDate;
@@ -733,7 +802,9 @@ function syncMail() {
             newRow.followUp = false;
           }
           applyStale_(newRow, cfg);
-          if (cfg.readCloses && !w.th.isUnread() && !isTrue_(newRow.followUp) && newRow.manualStatus !== 'WATCH') {
+          if (closeIfIFinished_(newRow, w.th, cfg)) { statusLog_(w.row, newRow, 'tarama'); saveRow_(db, newRow); processed++; return; }
+          var myOpen = w.facts.lastSenderRole === 'ME' && ['WAITING_CLIENT', 'WAITING_CM', 'IN_PROGRESS'].indexOf(newRow.status) >= 0 && /^Cevabında/.test(newRow.priorityReason || '');
+          if (cfg.readCloses && !w.th.isUnread() && !isTrue_(newRow.followUp) && !isSticky_(newRow.manualStatus) && !myOpen) {
             // Okunmuş thread (ör. sen cevap yazdın, ya da sen okudun) → bilgisi güncel ama Done
             removeBoardLabels_(w.th);
             markClosed_(newRow, 'DONE', 'okundu');   // okunan her şey Done'a (İş Tamamlandı sadece açık işler için)
@@ -741,8 +812,9 @@ function syncMail() {
           } else {
             applyBoardLabels_(w.th, newRow, cfg);
           }
+          statusLog_(w.row, newRow, 'tarama');
           saveRow_(db, newRow);
-          if (ai && newRow.status === 'MY_REPLY' && !isTrue_(newRow.closed)) replyJobs.push({ row: newRow, facts: w.facts });
+          if (ai && newRow.status === 'MY_REPLY' && !isTrue_(newRow.closed) && !/(^|,)(CALENDAR|CAL_RESPONSE|MEETING_NOTES)(,|$)/.test(String(newRow.flags || ''))) replyJobs.push({ row: newRow, facts: w.facts });   // takvim/toplantı notuna oto cevap yok
           processed++;
         } catch (err) {
           log_('ERROR', 'Thread ' + w.facts.threadId + ' işlenemedi: ' + err + (err.stack ? '\n' + err.stack : ''));
@@ -767,6 +839,64 @@ function syncMail() {
       if (fx1 || fx2) db.dirty = true;
       sp.setProperty('FIX_READ_DONE_V1', '1');
       log_('INFO', 'Düzeltme: okunmuş ' + fx1 + ' kart İş Tamamlandı → Done, ' + fx2 + ' takvim daveti → Hemen Cevapla.');
+    }
+    if (sp.getProperty('FIX_JIRA_ME_V1') !== '1') {
+      var fjm = 0, jlim = Date.now() - 21 * 86400000;
+      db.rows.forEach(function (r) {
+        if (isTrue_(r.closed) || r.manualStatus || (r.status !== 'JIRA' && r.aiStatus !== 'JIRA') || new Date(r.lastDate).getTime() < jlim || r.msgCount === '') return;
+        r.msgCount = ''; r._dirty = true; fjm++;
+      });
+      if (fjm) db.dirty = true;
+      sp.setProperty('FIX_JIRA_ME_V1', '1');
+      log_('INFO', 'Jira: ' + fjm + ' açık Jira kartı "bana seslenildi / yorum yaptığım iş" kuralıyla yeniden sınıflanacak.');
+    }
+    if (sp.getProperty('FIX_JIRA_DELEGATED_V1') !== '1') {
+      var fjd = 0;
+      db.rows.forEach(function (r) {
+        if (isTrue_(r.closed) || r.status !== 'WAITING_CM' || r.manualStatus || !/(^|,)JIRA(,|$)/.test(String(r.flags || '')) || String(r.priorityReason || '').indexOf('Jira yorumunda işi ekibe verdin') !== 0) return;
+        r.status = 'JIRA'; r.aiStatus = 'JIRA'; r.priorityReason = String(r.priorityReason).replace('dönüşleri bekleniyor', 'ekibin alması bekleniyor');
+        r._dirty = true; db.dirty = true; fjd++;
+      });
+      sp.setProperty('FIX_JIRA_DELEGATED_V1', '1');
+      if (fjd) log_('INFO', 'Jira: ekibe iş verdiğin ' + fjd + ' kart "CM Cevabı Bekleniyor"dan "Jira · Alınmayı Bekliyor"a taşındı.');
+    }
+    if (sp.getProperty('FIX_JIRA_STAGE_V7') !== '1' && jiraCreds_() && Date.now() - started < 150000) {
+      var fjs = 0, fjsDone = true, fjsStart = Date.now();
+      db.rows.forEach(function (r) {
+        if (isTrue_(r.closed) || isSticky_(r.manualStatus) || r.manualStatus) return;
+        var jf = /(^|,)JIRA(,|$)/.test(String(r.flags || ''));
+        if (!(isJiraStatus_(r.status) || (jf && (r.status === 'MY_REPLY' || r.status === 'WAITING_CM')))) return;
+        if (Date.now() - fjsStart > 90000) { fjsDone = false; return; }
+        var k = (String(r.subject || '').match(JIRA_KEY_RE_) || [])[1]; if (!k) return;
+        try {
+          if (applyJiraStage_(r, jiraStageOf_(k))) {
+            r._dirty = true; db.dirty = true; fjs++;
+            try { applyBoardLabels_(apiThread_(r.threadId), r, cfg); } catch (e) {}
+          }
+        } catch (e) {}
+      });
+      if (fjsDone) sp.setProperty('FIX_JIRA_STAGE_V7', '1');
+      log_('INFO', 'Jira aşamaları: ' + fjs + ' Jira kartı ekip almadı / ekip yapıyor / ekip tamamladı sütunlarına ayrıldı' + (fjsDone ? '.' : ' (devam edecek).'));
+    }
+    if (sp.getProperty('FIX_MEETING_NOTES_V1') !== '1') {
+      var fmn = 0;
+      db.rows.forEach(function (r) {
+        if (isTrue_(r.closed) || !/^\s*notes for/i.test(String(r.subject || '')) || !/circleback/i.test(String(r.participants || '') + ' ' + String(r.lastSender || ''))) return;
+        meetingNotesOverride_(r, 'notifications@circleback.ai', r.subject); r._dirty = true; fmn++;
+        try { applyBoardLabels_(apiThread_(r.threadId), r, cfg); } catch (e) {}
+      });
+      if (fmn) db.dirty = true;
+      sp.setProperty('FIX_MEETING_NOTES_V1', '1');
+      log_('INFO', 'Toplantı notları: ' + fmn + ' Circleback kartı Hemen Cevapla\'ya alındı.');
+    }
+    if (sp.getProperty('FIX_STATUS_LABELS_V1') !== '1' && Date.now() - started < 200000) {
+      var fsl = 0;
+      db.rows.forEach(function (r) {
+        if (isTrue_(r.closed) || !STATUS_LABELS[r.status] || Date.now() - started > 240000) return;
+        try { applyBoardLabels_(apiThread_(r.threadId), r, cfg); fsl++; } catch (e) {}
+      });
+      sp.setProperty('FIX_STATUS_LABELS_V1', '1');
+      log_('INFO', 'Durum label\'ları eklendi: ' + fsl + ' kart (Board/Hemen Cevapla, Board/Yakin Takip).');
     }
     if (sp.getProperty('FIX_STYLE_V1') !== '1') {
       var fst = 0;
@@ -813,7 +943,7 @@ function syncMail() {
     if (sp.getProperty('FIX_CLIENT_WAIT_V1') !== '1') {
       var fcw = 0;
       db.rows.forEach(function (r) {
-        if (isTrue_(r.closed) || isTrue_(r.followUp) || r.status === 'WATCH' || r.status === 'LATER') return;
+        if (isTrue_(r.closed) || isTrue_(r.followUp) || isSticky_(r.status) || r.status === 'LATER') return;
         if (!r.manualStatus && (r.status === 'WAITING_CLIENT' || r.status === 'CLIENT_STALE') && ['CM', 'INTERNAL', 'ME'].indexOf(r.lastSenderRole) >= 0 && !cacheOf_(r).lastBody) {
           r.msgCount = ''; r._dirty = true; fcw++;
         }
@@ -1005,7 +1135,7 @@ function closeReadThreads_(db, cfg) {
       seen[id] = true;
       if (unread[id]) return;
       var row = db.byId[id];
-      if (row && (isTrue_(row.followUp) || row.manualStatus === 'WATCH') && !isTrue_(row.closed)) return;   // takipteki kart okunsa da açık kalır
+      if (row && (isTrue_(row.followUp) || isSticky_(row.manualStatus)) && !isTrue_(row.closed)) return;   // takipteki kart okunsa da açık kalır
       removeBoardLabels_(th);
       if (row && !isTrue_(row.closed)) {
         markClosed_(row, 'DONE', 'okundu');
@@ -1017,7 +1147,7 @@ function closeReadThreads_(db, cfg) {
   // Label'ı olmayan açık kayıtlar: tek tek kontrol pahalı → turda en fazla 25 kayıt / 30 sn
   var t0 = Date.now(), checked = 0;
   db.rows.forEach(function (row) {
-    if (isTrue_(row.closed) || seen[row.threadId] || isTrue_(row.followUp) || row.manualStatus === 'WATCH') return;
+    if (isTrue_(row.closed) || seen[row.threadId] || isTrue_(row.followUp) || isSticky_(row.manualStatus)) return;
     if (checked >= 10 || Date.now() - t0 > 20000) return;
     if (Date.now() - new Date(row.updatedAt).getTime() < 5 * 60000) return;
     checked++;
@@ -1056,6 +1186,20 @@ function backfillRecentMine_(db, cfg, started) {
     }
     r._dirty = true; db.dirty = true;
   }
+  return true;
+}
+
+/** İş Tamamlandı'ya düşecek iş son olarak kullanıcının mailiyle kapandıysa (son mesaj onun) → doğrudan Done.
+ *  İş Tamamlandı sütunu sadece başkalarının (CM/ekip/marka) kapattığı işler için kalır. */
+function closeIfIFinished_(row, thread, cfg) {
+  if (isTrue_(row.closed) || row.status !== 'COMPLETED' || row.lastSenderRole !== 'ME' || isSticky_(row.manualStatus) || isTrue_(row.followUp)) return false;
+  try {
+    var rm = boardLabelIds_().concat(['STARRED']);
+    if (cfg.markReadOnClose) rm.push('UNREAD');
+    if (thread) thread.modifyLabels([], rm);
+  } catch (e) { if (!/not found|404/i.test(String(e))) log_('WARN', 'Done label temizliği: ' + e); }
+  markClosed_(row, 'DONE', 'cevabınla tamamlandı');
+  row.followUp = false;
   return true;
 }
 
@@ -1125,7 +1269,7 @@ function repairUnread_(db, cfg, base, seenIds, threads, started) {
     var boardIds = boardLabelIds_();
     db.rows.forEach(function (r) {
       if (Date.now() - started > 200000) return;
-      if (isTrue_(r.closed) || isTrue_(r.followUp) || r.manualStatus === 'WATCH' || r.status === 'IGNORED' || unreadSet[r.threadId]) return;
+      if (isTrue_(r.closed) || isTrue_(r.followUp) || isSticky_(r.manualStatus) || r.status === 'IGNORED' || unreadSet[r.threadId]) return;
       if (new Date(r.lastDate).getTime() < floor) return;                       // lookback dışı: bilinmiyor, dokunma
       if (Date.now() - new Date(r.updatedAt).getTime() < 5 * 60000) return;     // az önce işlenmiş
       try { apiThread_(r.threadId).modifyLabels([], boardIds); } catch (e) { if (!/not found|404/i.test(String(e))) return; }
@@ -1183,6 +1327,7 @@ function businessDaysSince_(iso, now) {
  */
 function applyStale_(row, cfg) {
   if (isTrue_(row.closed)) return false;
+  if (/(^|,)JIRA(,|$)/.test(String(row.flags || ''))) return false;   // Jira bildirimleri bekleme/hatırlatma akışına girmez (aşama Jira'dan gelir)
   var before = row.status;
   // Kural: "3+ İş Günü Bekleyen" sütununda SADECE son mesajın üzerinden 3+ iş günü geçmiş kartlar durur.
   var staleNow = workDaysWaiting_(row.lastDate) >= cfg.staleDays;
@@ -1272,6 +1417,30 @@ function clientAsked_(body) {
 function validDue_(ai) { return /^\d{4}-\d{2}-\d{2}$/.test(String(ai && ai.due_date || '')) && /^(CLIENT_REQUEST|BIZ_PROMISE)$/.test(String(ai.due_source || '').toUpperCase()); }
 /** flags içindeki DUE:yyyy-MM-dd (AI'ın bulduğu ileri teslim tarihi) */
 function dueOf_(row) { var m = String(row.flags || '').match(/(?:^|,)DUE:(\d{4}-\d{2}-\d{2})/); return m ? m[1] : ''; }
+/**
+ * Jira bildirim thread'i: her mail bir olay ("<Kişi> added a comment on a work item …").
+ * needsMe: son olay başkasının yorumu VE (yorumda @ben geçiyor YA DA son 3 yorumdan biri benim).
+ */
+function jiraInfo_(all, cfg) {
+  var myNames = [cfg.MY_NAME].concat(cfg.aliases || []).map(function (n) { return foldTr_(String(n || '').trim()); }).filter(function (n) { return n.split(/\s+/).length >= 2; });
+  var first = foldTr_((cfg.MY_NAME || '').split(/\s+/)[0] || '');
+  var isMe = function (actor) { var a = foldTr_(actor).replace(/\(jira\)/, '').trim(); return !!a && myNames.some(function (n) { return a === n; }); };
+  var ev = all.slice(-15).map(function (m) {
+    var body = String(m.getPlainBody() || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
+    var mm = body.match(/^(.{2,60}?)\s+(added a comment|edited a comment|commented|mentioned you|updated|created|changed|resolved|assigned|yorum ekledi|yorumu düzenledi|güncelledi|oluşturdu|sizden bahsetti)\b/i);
+    var name = mm ? mm[1].trim() : String((parseAddresses_(m.getFrom())[0] || {}).name || '').replace(/\(jira\)/i, '').trim();
+    var verb = mm ? mm[2].toLowerCase() : '';
+    var fb = foldTr_(body);
+    var mention = /mentioned you|sizden bahsetti/i.test(body) || myNames.some(function (n) { return fb.indexOf('@' + n) >= 0; }) || (first && fb.indexOf('@' + first + ' ') >= 0);
+    return { actor: name, comment: /comment|yorum|mentioned|bahsetti/.test(verb), mine: isMe(name), mention: mention };
+  });
+  var last = ev[ev.length - 1] || {};
+  var comments = ev.filter(function (e) { return e.comment; });
+  var myRecent = comments.slice(-3).some(function (e) { return e.mine; });
+  var mention = !last.mine && last.mention;
+  var needsMe = !last.mine && (mention || (last.comment && myRecent));
+  return { needsMe: needsMe, mention: !!mention, myRecent: myRecent, lastActor: last.actor || '', lastMine: !!last.mine, lastComment: !!last.comment };
+}
 function cacheOf_(row) { try { return JSON.parse(row.factsCache || '{}'); } catch (e) { return {}; } }
 
 /** Son CM mesajı sadece "dönüş yapacağım" türünde bir söz mü? */
@@ -1317,6 +1486,197 @@ function thanksOnly_(body) {
 // ============================================================
 //  THREAD ANALİZİ
 // ============================================================
+var MY_REPLY_EFFECT_ = { ASKED_CLIENT: 'WAITING_CLIENT', DELEGATED: 'WAITING_CM', TOOK_OVER: 'IN_PROGRESS', CLOSED: 'COMPLETED' };
+var MY_REPLY_REASON_ = { ASKED_CLIENT: 'Cevabında markadan bir şey istedin', DELEGATED: 'Cevabında işi CM\'e/ekibe devrettin', TOOK_OVER: 'Cevabında işi üstlendin', CLOSED: 'Cevabınla konu kapandı' };
+/**
+ * Jira kartının aşaması (Jira API'den):
+ *  TODO      → JIRA       ekip henüz almadı (durum "To Do" kategorisinde ve ekipten yorum yok)
+ *  WIP       → JIRA_WIP   ekip çalışıyor (durum "In Progress" kategorisinde ya da ekipten biri yorum yazdı)
+ *  TEAM_DONE → JIRA_DONE  ekip ya da CM "Done" kategorisine aldı
+ *  MY_DONE   → kart kapanır (DONE), task'i kullanıcı Done'a aldı
+ * Ekip = kullanıcı ve CM'ler dışındaki Jira kullanıcıları. Jira bağlı değilse null.
+ */
+var JIRA_STAGE_STATUS_ = { ME: 'MY_REPLY', US: 'WAITING_CM', TODO: 'JIRA', WIP: 'JIRA_WIP', TEAM_DONE: 'JIRA_DONE', MY_DONE: 'DONE' };
+/** Jira durum adı → aşama. "To Do" kategorisinde olup aslında ekibin yürüttüğü ya da bizi beklediği durumlar.
+ *  Ayarlar > JIRA_STATUS_MAP ile eklenebilir/değiştirilebilir (ör. "MT'de Bekliyor=US, Devam Eden Yayın=WIP, Recurring=WIP"). */
+var JIRA_STATUS_MAP_DEFAULT_ = "MT'de Bekliyor=US, Devam Eden Yayın=WIP, Recurring=WIP, In Review=WIP";
+function jiraStatusMap_() {
+  var out = {};
+  [JIRA_STATUS_MAP_DEFAULT_, String(getConfig_().JIRA_STATUS_MAP || '')].forEach(function (src) {
+    src.split(',').forEach(function (pair) { var kv = pair.split('='); if (kv.length === 2 && kv[0].trim()) out[foldTr_(kv[0].trim())] = kv[1].trim().toUpperCase(); });
+  });
+  return out;
+}
+var JIRA_STAGE_MEMO_ = {};
+function jiraStageOf_(key, fresh) {
+  key = String(key || '').toUpperCase(); if (!key || !jiraCreds_()) return null;
+  if (!fresh && JIRA_STAGE_MEMO_[key]) return JIRA_STAGE_MEMO_[key];
+  var i = jiraFetch_('get', '/rest/api/3/issue/' + key + '?fields=status,comment,summary&expand=changelog', null, true);
+  if (!i || i._err) return null;
+  var f = i.fields || {}, st = f.status || {}, cat = (st.statusCategory && st.statusCategory.key) || '';
+  var me = {}; try { me = JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_ACCOUNT') || '{}'); } catch (e) {}
+  var cmList = (getConfig_().cms || []).map(function (c) { return c.name || ''; });
+  var cms = cmList.map(foldTr_);
+  var isMe = function (a) { return !!(a && ((me.id && a.accountId === me.id) || (me.name && a.displayName === me.name))); };
+  var isCm = function (a) { return !!(a && cms.indexOf(foldTr_(a.displayName || '')) >= 0); };
+  var out = { key: key, status: st.name || '', stage: 'TODO', by: '' };
+  var done = function (stage, by) { out.stage = stage; if (by) out.by = by; JIRA_STAGE_MEMO_[key] = out; return out; };
+  var cs = ((f.comment && f.comment.comments) || []);
+  // Benim son hareketim: son yorumum ya da task'te yaptığım herhangi bir değişiklik (durum, açıklama, atama…)
+  var myLast = 0;
+  cs.forEach(function (c) { if (isMe(c.author)) myLast = Math.max(myLast, new Date(c.created).getTime() || 0); });
+  ((i.changelog && i.changelog.histories) || []).forEach(function (h) { if (isMe(h.author)) myLast = Math.max(myLast, new Date(h.created).getTime() || 0); });
+  var after = cs.filter(function (c) { return c.author && c.author.accountType !== 'app' && !isMe(c.author) && (new Date(c.created).getTime() || 0) > myLast; });
+  // 1) Task Done'daysa (kategori 'done') sütunu Tamamlandı: kapatırken beni etiketlemek bilgi vermektir, cevap beklenmez.
+  //    Kim kapattı: ben → Done (kapanır), ekip → Jira · Ekip Tamamladı
+  if (cat === 'done') {
+    var by = null;
+    ((i.changelog && i.changelog.histories) || []).slice().sort(function (a, b) { return new Date(a.created) - new Date(b.created); }).forEach(function (h) {
+      (h.items || []).forEach(function (it) { if (it.field === 'status' && it.toString === st.name) by = h.author; });
+    });
+    return done(isMe(by) ? 'MY_DONE' : 'TEAM_DONE', (by && by.displayName) || '');
+  }
+  // 2) Benim son hareketimden sonra biri beni etiketlediyse → Hemen Cevapla
+  var meRe = me.name ? new RegExp('@' + String(me.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
+  // Bahsetme GÜNCEL olmalı: son 3 yorumdan biri olmalı VE ondan sonra konuşma başka biriyle (ör. CM cevapladı, ekip başkasına yazdı) sürmemiş olmalı.
+  // Ör. 1 ay önce "@Deniz @Elif LP'yi rica edebilir miyiz?" → sonra Elif cevap verip konuşmayı sürdürdüyse bu artık senden beklenmiyor.
+  var mentionsMe = function (c) { var raw = JSON.stringify(c.body || ''); return (me.id && raw.indexOf('"' + me.id + '"') >= 0) || (meRe && meRe.test(adfToText_(c.body))); };
+  var ask = [];
+  var tail = cs.slice(-3);
+  for (var ti = 0; ti < tail.length; ti++) {
+    var tc = tail[ti];
+    if (!tc.author || isMe(tc.author) || (new Date(tc.created).getTime() || 0) <= myLast || !mentionsMe(tc)) continue;
+    var movedOn = tail.slice(ti + 1).some(function (n) { return n.author && n.author.accountId !== tc.author.accountId; });
+    if (!movedOn) ask.push(tc);
+  }
+  if (ask.length) return done('ME', ask[ask.length - 1].author.displayName || '');
+  // 3) Benden sonra yazılan son yorumu OKU: bana mı soruyor, CM'e mi, ekip yapıyor mu, bitirdi mi
+  var cls = after.length ? jiraCommentClass_(after[after.length - 1], f.summary || '', st.name || '', me.name || '', cmList, isCm(after[after.length - 1].author)) : '';
+  var lastBy = after.length ? (after[after.length - 1].author.displayName || '') : '';
+  if (cls === 'ME') return done('ME', lastBy);
+  if (cls === 'CM') return done('US', lastBy);
+  if (cls === 'DONE') return done('TEAM_DONE', lastBy);
+  // 4) Durum adı / kategorisi
+  var mapped = jiraStatusMap_()[foldTr_(st.name || '')] || '';
+  if (mapped === 'US') return done('US');
+  if (mapped === 'WIP' || mapped === 'TODO' || mapped === 'TEAM_DONE') return done(mapped);
+  if (cat === 'indeterminate') return done('WIP', lastBy);
+  if (cls === 'WIP') return done('WIP', lastBy);
+  return done('TODO');
+}
+/**
+ * Ekipten/CM'den gelen son yorumu sınıfla (AI, sonuç yorum id'sine göre saklanır; AI yoksa kelime kuralı):
+ *  ME   → kullanıcıya soru/onay/karar/bilgi talebi ya da markadan bir şey istenmesi gerekiyor
+ *  CM   → Client Manager'a soru/talep
+ *  DONE → ekip işi bitirdiğini bildiriyor (yayına aldık, ekledik, tamamlandı)
+ *  WIP  → ekip üzerinde çalışıyor / aldı / bilgi veriyor
+ *  TEAM → (CM yazdıysa) ekipten bir şey istiyor → ekip henüz almadı
+ */
+function jiraCommentClass_(c, summary, status, myName, cmList, byCm) {
+  var id = String(c.id || ''), up = PropertiesService.getUserProperties(), memo = {};
+  try { memo = JSON.parse(up.getProperty('JIRA_CMT_CLS') || '{}'); } catch (e) {}
+  if (id && memo[id]) return memo[id];
+  var text = adfToText_(c.body).replace(/\s+/g, ' ').trim().slice(0, 2500), who = (c.author && c.author.displayName) || '?';
+  var when = c.created ? Utilities.formatDate(new Date(c.created), 'Europe/Istanbul', 'dd.MM.yyyy HH:mm') : '';
+  var cls = '';
+  try {
+    var a = safeJson_(callGemini_([
+      'Bir ajansta Jira task\'ine gelen SON yorumu sınıflandır. Kullanıcı: ' + (myName || 'kullanıcı') + ' (Client Director). Client Manager(lar): ' + (cmList.join(', ') || '—') + '. Yorumu yazan: ' + who + (byCm ? ' (Client Manager)' : ' (uygulama ekibi)') + '.',
+      'Task: ' + summary + ' | Durum: ' + status,
+      'YORUM (' + when + ', şu an ' + nowStr_() + '): ' + text,
+      'Yorum ne istiyor? Tek bir değer seç:',
+      'ME = ' + (myName || 'kullanıcı') + '\'dan bir şey bekleniyor: ona soru, onay, karar ya da bilgi talebi; ya da markadan (müşteriden) bir şey istenmesi gerekiyor (materyal, onay, teyit).',
+      'CM = Client Manager\'a soru ya da talep (adı geçiyor ya da ona hitap ediliyor).',
+      'DONE = ekip işi bitirdiğini bildiriyor (yayına aldık, ekledik, güncelledik, tamamlandı) ve kimseden bir şey istemiyor.',
+      'WIP = ekip işi aldı / üzerinde çalışıyor / ara bilgi veriyor ("bakıyoruz", "yarın kuruyoruz"), kimseden bir şey istemiyor.',
+      'TEAM = yorumu Client Manager yazdı ve ekipten bir şey istiyor.',
+      'Bir yorum hem bitirdiğini söyleyip hem soru soruyorsa soruyu esas al (ME ya da CM).',
+      'SADECE şu JSON\'u döndür: {"cls": "ME|CM|DONE|WIP|TEAM"}'
+    ].join('\n'), getConfig_()));
+    cls = String(a.cls || '').toUpperCase().trim();
+  } catch (e) { try { log_('WARN', 'Jira yorumu sınıflanamadı: ' + e); } catch (x) {} }
+  if (['ME', 'CM', 'DONE', 'WIP', 'TEAM'].indexOf(cls) < 0) {
+    var ft = foldTr_(text), first = foldTr_(String(myName || '').split(/\s+/)[0] || '');
+    var cmHit = cmList.some(function (n) { var fn = foldTr_(String(n).split(/\s+/)[0] || ''); return fn && ft.indexOf(fn) >= 0; });
+    if (byCm) cls = 'TEAM';
+    else if (/\?/.test(text) && first && ft.indexOf(first) >= 0) cls = 'ME';
+    else if (/\?/.test(text) && cmHit) cls = 'CM';
+    else if (/(tamamla|yayina al|ekledik|guncelledik|yapildi|kapattik|duzenledik)/.test(ft) && !/\?/.test(text)) cls = 'DONE';
+    else cls = 'WIP';
+  }
+  if (id) {
+    memo[id] = cls;
+    var ks = Object.keys(memo); if (ks.length > 400) ks.slice(0, ks.length - 400).forEach(function (k) { delete memo[k]; });
+    try { up.setProperty('JIRA_CMT_CLS', JSON.stringify(memo)); } catch (e) {}
+  }
+  return cls;
+}
+function jiraStageReason_(js) {
+  if (!js) return 'Jira bildirimi';
+  if (js.stage === 'ME') return 'Jira\'da senden bahsedildi (' + (js.by || '?') + ')';
+  if (js.stage === 'US') return 'Jira: ' + (js.by ? js.by + ' ' : 'ekip ') + 'CM\'den dönüş bekliyor (' + js.status + ')';
+  if (js.stage === 'TEAM_DONE') return 'Jira: ' + (js.by || 'ekip') + ' tamamladı (' + js.status + ')';
+  if (js.stage === 'MY_DONE') return 'Jira: task\'i sen Done\'a aldın (' + js.status + ')';
+  if (js.stage === 'WIP') return 'Jira: ekip üzerinde çalışıyor (' + js.status + (js.by ? ', son yorum ' + js.by : '') + ')';
+  return 'Jira: ekip henüz almadı (' + js.status + ')';
+}
+/** Kartın Jira aşamasını satıra uygula (MY_DONE → kart kapanır). manuel/sabit durumlara dokunmaz. */
+function applyJiraStage_(row, js) {
+  if (!row || !js || isSticky_(row.manualStatus)) return false;
+  var ns = JIRA_STAGE_STATUS_[js.stage] || 'JIRA';
+  if (ns === 'DONE') {
+    if (isTrue_(row.closed) && row.status === 'DONE') return false;
+    row.priorityReason = jiraStageReason_(js); row.aiStatus = 'DONE'; markClosed_(row, 'DONE', 'jira (sen kapattın)'); return true;
+  }
+  if (row.status === ns && !isTrue_(row.closed)) return false;
+  row.status = ns; row.aiStatus = ns; row.priorityReason = jiraStageReason_(js); row.updatedAt = new Date().toISOString();
+  if (ns === 'MY_REPLY') row.priority = 1;
+  return true;
+}
+// Jira bildirimi kartından Jira'ya yazdığım SON yorumun içeriği kartın durumunu belirler
+// Ekibe iş verdiysen task To Do'ya döner → "Jira · Alınmayı Bekliyor" (ekip alınca Ekip Yapıyor'a geçer)
+var JIRA_COMMENT_EFFECT_ = { ASKED_CLIENT: 'WAITING_CLIENT', DELEGATED: 'JIRA', TOOK_OVER: 'IN_PROGRESS', CLOSED: 'COMPLETED', INFO: 'JIRA' };
+var JIRA_COMMENT_REASON_ = { ASKED_CLIENT: 'Jira yorumuna göre markadan dönüş bekleniyor', DELEGATED: 'Jira yorumunda işi ekibe verdin, ekibin alması bekleniyor', TOOK_OVER: 'Jira yorumunda işi üstlendin', CLOSED: 'Jira yorumunla iş tamamlandı', INFO: 'Jira\'da yorumla cevapladın' };
+function jiraMyComments_() { try { return JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_MY_COMMENTS') || '{}'); } catch (e) { return {}; } }
+function jiraMyCommentSet_(threadId, key, eff) {
+  var all = jiraMyComments_(), id = String(threadId); delete all[id];
+  all[id] = { t: new Date().toISOString(), key: key, eff: eff };
+  var ids = Object.keys(all); if (ids.length > 300) ids.slice(0, ids.length - 300).forEach(function (k) { delete all[k]; });
+  PropertiesService.getUserProperties().setProperty('JIRA_MY_COMMENTS', JSON.stringify(all));
+}
+/** Yorumumun etkisi: AI ile (kısa çağrı), olmazsa kelime kuralı */
+function jiraCommentEffect_(body, cfg, st) {
+  var t = String(body || '').slice(0, 3000);
+  try {
+    var a = safeJson_(callGemini_([
+      'Aşağıdaki yorumu ' + (cfg.MY_NAME || 'kullanıcı') + ' (ajans tarafında işi yöneten kişi) bir Jira task\'ine ekibine yazdı. Bu yorumdan sonra işin topu kimde? Tek bir etki seç:',
+      'DELEGATED = ekipten birine bir şey yaptırıyor, soruyor, kontrol ettiriyor ya da ekibin dönüşünü bekliyor (@etiket, "bakabilir misin", "kurar mısın", "güncelleyelim").',
+      'ASKED_CLIENT = markadan bir şey bekleniyor (onay, materyal, bilgi; "markaya sordum", "markadan dönüş bekliyoruz").',
+      'TOOK_OVER = işi kendisi üstlendi ya da kendisi takip edecek ("ben hallediyorum", "markaya ileteceğim", "kontrol edip dönüyorum").',
+      'CLOSED = iş bitti, onaylandı, teşekkür/kapanış; kimseden bir şey beklenmiyor.',
+      'INFO = sadece bilgi, net bir sonraki adım yok.',
+      st ? 'TASK: ' + st.key + ' | ' + st.summary + ' | Durum: ' + st.status : '',
+      'YORUM:', t,
+      'SADECE şu JSON\'u döndür: {"effect": "DELEGATED|ASKED_CLIENT|TOOK_OVER|CLOSED|INFO"}'
+    ].filter(String).join('\n'), cfg));
+    var e = String(a.effect || '').toUpperCase().trim();
+    if (JIRA_COMMENT_EFFECT_[e]) return e;
+  } catch (err) { try { log_('WARN', 'Jira yorum etkisi AI ile bulunamadı: ' + err); } catch (e2) {} }
+  var f = foldTr_(t);
+  if (/(tamamdir|tesekkur|tamamlandi|yayina aldik|kapatabiliriz|onaylandi)/.test(f) && !/\?/.test(t)) return 'CLOSED';
+  if (/marka(dan|ya)?\s.*(bekl|sordum|ilettim|onay)/.test(f)) return 'ASKED_CLIENT';
+  if (/(^|\s)@\S/.test(t) || /\?|bakabilir|rica|kurar mi|yapabilir|guncelleyelim|ekleyelim/.test(f)) return 'DELEGATED';
+  if (/(hallederim|hallediyorum|iletecegim|iletiyorum|donuyorum|takip ediyorum)/.test(f)) return 'TOOK_OVER';
+  return 'INFO';
+}
+// Jira işi ↔ marka maili eşleşmesi (Markaya dön için)
+function jiraIssueThreads_() { try { return JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_ISSUE_THREADS') || '{}'); } catch (e) { return {}; } }
+function jiraIssueThreadSet_(key, threadId) {
+  if (!key || !threadId) return;
+  var all = jiraIssueThreads_(); delete all[key]; all[key] = String(threadId);
+  var ks = Object.keys(all); if (ks.length > 500) ks.slice(0, ks.length - 500).forEach(function (k) { delete all[k]; });
+  PropertiesService.getUserProperties().setProperty('JIRA_ISSUE_THREADS', JSON.stringify(all));
+}
 function processThread_(thread, facts, cfg, prevRow, ai) {
   if (!ai) ai = classifyWithGemini_(facts, cfg);
   var row = prevRow ? JSON.parse(JSON.stringify(prevRow)) : {};
@@ -1332,7 +1692,7 @@ function processThread_(thread, facts, cfg, prevRow, ai) {
   if (!(p >= 1 && p <= 5)) p = 3;
   var reason = ai.priority_reason || '';
   var status = STATUSES.indexOf(ai.status) >= 0 ? ai.status : 'IN_PROGRESS';
-  if (['STALE', 'REMINDED', 'DONE', 'JIRA', 'INTERNAL', 'AUTO'].indexOf(status) >= 0) status = 'IN_PROGRESS';
+  if (['STALE', 'REMINDED', 'DONE', 'JIRA', 'JIRA_WIP', 'JIRA_DONE', 'INTERNAL', 'AUTO'].indexOf(status) >= 0) status = 'IN_PROGRESS';
   // Top kimde? AI'ın açık cevabı + son mesajın yönü birlikte değerlendirilir
   var waitingOn = String(ai.waiting_on || '').toUpperCase();
   var rawStatusCW = status;
@@ -1343,6 +1703,11 @@ function processThread_(thread, facts, cfg, prevRow, ai) {
     // Son mesaj bizden dışarıya gitti ve AI işin bizde olduğunu açıkça söylemedi → dışarıdan cevap bekleniyor
     if (status === 'IN_PROGRESS' && facts.lastToClient && waitingOn !== 'BIZ') status = 'WAITING_CLIENT';
   }
+  // Kullanıcı CM yerine cevap verdiyse işi üstlenmiştir: CM'in cevabı beklenmez → iş devam ediyor
+  if (facts.lastSenderRole === 'ME' && ['WAITING_CM', 'MY_REPLY'].indexOf(status) >= 0) status = 'IN_PROGRESS';
+  // Son mesaj benimse durumu cevabımın içeriği belirler (markaya soru → Markada Bekleyen, CM'e devir → CM Cevabı, üstlenme → Devam, kapanış → Tamamlandı)
+  var myEff = String(ai.my_reply_effect || '').toUpperCase();
+  if (facts.lastSenderRole === 'ME' && MY_REPLY_EFFECT_[myEff]) { status = MY_REPLY_EFFECT_[myEff]; row._myEffect = myEff; }
   // CM/ekip son mesajda BIZ içinden birine soru sorduysa / destek istediyse iş BIZ'de devam ediyor
   if (['CM', 'INTERNAL'].indexOf(facts.lastSenderRole) >= 0 && ['WAITING_CLIENT', 'COMPLETED', 'WAITING_CM'].indexOf(status) >= 0 &&
       askedInternal_(facts.cache && facts.cache.lastBody, facts.cache, cfg)) { status = 'IN_PROGRESS'; ai.cm_committed = false; }
@@ -1360,9 +1725,24 @@ function processThread_(thread, facts, cfg, prevRow, ai) {
     status = 'IN_PROGRESS'; ai.cm_committed = false;
   }
 
-  if (facts.isJira) {
-    // Jira bildirimi → kendi kolonu (otomatik sayılmaz)
+  if (facts.isJira && facts.jira && facts.jira.needsMe) {
+    try {   // Jira'da bahsetmeden sonra bir şey yaptıysam (yorum, durum, açıklama) artık benden beklenmiyor
+      var nk = (String(facts.subject || '').match(JIRA_KEY_RE_) || [])[1], njs = nk ? jiraStageOf_(nk) : null;
+      if (njs && njs.stage !== 'ME') facts.jira.needsMe = false;
+    } catch (e) {}
+  }
+  if (facts.isJira && facts.jira && facts.jira.needsMe) {
+    // Jira'da bana seslenildi ya da yorum yaptığım işe başkası yorum yazdı → Hemen Cevapla
+    p = facts.jira.mention ? 1 : 2; status = 'MY_REPLY';
+    reason = facts.jira.mention ? 'Jira\'da senden bahsedildi (' + facts.jira.lastActor + ')' : 'Yorum yaptığın Jira işine yeni yorum (' + facts.jira.lastActor + ')';
+  } else if (facts.isJira) {
+    // Jira bildirimi → ekip almadı / ekip yapıyor / ekip tamamladı (Jira API'den; bağlı değilse "Jira")
     p = 3; status = 'JIRA'; reason = 'Jira bildirimi';
+    try {
+      var jsk = (String(facts.subject || '').match(JIRA_KEY_RE_) || [])[1];
+      var js0 = jsk ? jiraStageOf_(jsk) : null;
+      if (js0) { status = JIRA_STAGE_STATUS_[js0.stage] || 'JIRA'; reason = jiraStageReason_(js0); if (status === 'DONE') row._jiraMyDone = true; if (status === 'MY_REPLY') p = 1; }
+    } catch (e) {}
   } else if (facts.isMachine && !(isWork && p <= 3)) {
     // Gerçek otomatik gönderim (newsletter, platform bildirimi, bounce, OOO) ve AI iş görmedi
     p = 5; status = 'AUTO'; reason = reason || 'Otomatik gönderim';
@@ -1394,7 +1774,26 @@ function processThread_(thread, facts, cfg, prevRow, ai) {
     if (status === 'FYI' && p === 5) p = 4;
   }
 
+  if (facts.isJira && !(facts.jira && facts.jira.needsMe)) {
+    var jmc = jiraMyComments_()[String(facts.threadId)];
+    if (jmc && jmc.t) {
+      var jLast = new Date(facts.lastDate).getTime(), jMine = new Date(jmc.t).getTime() + 90000;
+      if (jLast <= jMine || (facts.jira && facts.jira.lastMine)) {
+        // Benim yorumumdan sonra başka bir şey olmadı → durum son yorumuma göre
+        var effSt = JIRA_COMMENT_EFFECT_[jmc.eff] || 'JIRA';
+        if (jmc.eff === 'DELEGATED') { status = 'JIRA'; p = 3; reason = JIRA_COMMENT_REASON_.DELEGATED + ' (' + jmc.key + ')'; row._jiraMyDone = false; }
+        else if (effSt !== 'JIRA') { status = effSt; reason = (JIRA_COMMENT_REASON_[jmc.eff] || 'Jira yorumun') + ' (' + jmc.key + ')'; row._jiraMyDone = false; }
+      } else if (facts.jira && facts.jira.lastComment && !jiraCreds_()) {
+        // Yorum yaptığım işe benden sonra başkası yorum yazdı → bana dönüş
+        p = 2; status = 'MY_REPLY'; reason = 'Yorum yaptığın Jira işine yeni yorum (' + (facts.jira.lastActor || '?') + ')';
+      }
+    }
+  }
+  if (row._myEffect && !facts.isJira && !facts.isCalendarInvite) { status = MY_REPLY_EFFECT_[row._myEffect]; reason = MY_REPLY_REASON_[row._myEffect]; }
+  delete row._myEffect;
   var cm = pickClientManager_(facts, cfg, ai, isWork && !facts.isMachine);
+  // Genel duyuru / otomatik gönderim ve markası yok → CM'e atanmaz
+  if (['INTERNAL', 'AUTO'].indexOf(status) >= 0 && !cm.brand && cm.via !== 'jira') cm = { name: 'Atanmamış', email: '', brand: '', via: 'internal' };
 
   var now = new Date().toISOString();
   Object.assign(row, {
@@ -1431,6 +1830,9 @@ function processThread_(thread, facts, cfg, prevRow, ai) {
     updatedAt: now,
     hasCm: !!facts.hasCm
   });
+  // Task'i kullanıcı Done'a aldıysa kart kapanır
+  if (row._jiraMyDone && status === 'DONE') markClosed_(row, 'DONE', 'jira (sen kapattın)');
+  delete row._jiraMyDone;
   return row;
 }
 
@@ -1480,6 +1882,7 @@ function extractFacts_(thread, cfg, row) {
     if (sig.groupList) cache.groupList = true;
     if (sig.jira) cache.jira = true;
     var body = cleanBody_(m.getPlainBody() || '');
+    try { var hb0 = m.getBody ? m.getBody() : ''; if (/<table/i.test(hb0)) { var tmd = htmlTablesMd_(hb0); if (tmd) body += '\n\n[Maildeki tablo, sütun yapısıyla]\n' + tmd; } } catch (e) {}
     var date = m.getDate();
     if (idx === 0) { cache.firstDate = date.toISOString(); cache.firstBody = body.slice(0, 1500); }
     if (role !== 'ME') cache.lastOtherBody = body.slice(0, 600);
@@ -1560,6 +1963,7 @@ function extractFacts_(thread, cfg, row) {
     lastToClient: lastToClient,
     // Son 3 mesajdan en az biri benden mi? ("Benim aktif" filtresi). Thread zaten bellekte, ek istek yok.
     recentMine: all.slice(-3).some(function (m) { return roleOf_((parseAddresses_(m.getFrom())[0] || {}).email, cfg) === 'ME'; }),
+    jira: jira ? jiraInfo_(all, cfg) : null,
     flags: flags,
     participants: pList,
     participantsText: pList.map(function (p) { return (p.name || p.email); }).slice(0, 12).join(', '),
@@ -1581,7 +1985,7 @@ function roleOf_(email, cfg) {
 
 /**
  * Göndereni sınıflar.
- *  - groupList: Google Groups / şirket içi dağıtım listesi (performans@, kreatif@, data@…) → NEWSLETTER DEĞİL.
+ *  - groupList: Google Groups / şirket içi dağıtım listesi (tokyo@, ad@, mt@…) → NEWSLETTER DEĞİL.
  *    Bu listeler List-Id, List-Unsubscribe ve "Precedence: list" başlığı ekler; v1'de hata buradaydı.
  *  - machine: gerçekten otomatik (newsletter servisi, platform bildirimi, bounce, otomatik yanıt).
  *  - jira: Jira bildirimi.
@@ -1644,6 +2048,30 @@ function parseAddresses_(s) {
 }
 
 /** Düz metinden alıntıları, imzayı, yasal uyarıları ve sınıflandırma bantlarını temizler */
+/** Maildeki veri tablolarını markdown'a çevirir (alıntı öncesi kısım; yerleşim/imza tabloları atlanır) */
+function htmlTablesMd_(html) {
+  var h = String(html || '');
+  var cut = h.search(/id="?divRplyFwdMsg|class="?(x_)?gmail_quote|<blockquote|id="?appendonsend|-----\s*Original Message|border-top:\s*solid #(E1E1E1|B5C4DF)|<b>(<span[^>]*>)?\s*(Gönderen|From|Kimden)\s*:/i);
+  if (cut > 0) h = h.slice(0, cut);
+  var ent = function (t) { return t.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&#39;|&#8217;/g, "'").replace(/&quot;/g, '"').replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(Number(n)); }); };
+  var out = [], re = /<table\b[^>]*>([\s\S]*?)<\/table>/gi, m;
+  while ((m = re.exec(h))) {
+    var inner = m[1]; if (/<table\b/i.test(inner)) continue;                 // iç içe tablo = yerleşim/imza
+    var rows = [];
+    inner.replace(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi, function (_, tr) {
+      var cs = [];
+      tr.replace(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi, function (__, td) { cs.push(ent(td.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim().replace(/\|/g, '/')); return __; });
+      if (cs.some(function (c) { return c; })) rows.push(cs);
+      return _;
+    });
+    var cols = Math.max.apply(null, rows.map(function (r) { return r.length; }).concat([0]));
+    var filled = rows.reduce(function (a, r) { return a + r.filter(Boolean).length; }, 0), all = rows.map(function (r) { return r.join(' '); }).join(' ');
+    if (rows.length < 2 || cols < 2 || filled < 4) continue;
+    if (/@[a-z0-9.-]+\.[a-z]{2,}|\+90|\bwww\./i.test(all) && filled <= 14) continue;   // imza tablosu
+    out.push(rows.map(function (r, i) { while (r.length < cols) r.push(''); return '| ' + r.join(' | ') + ' |' + (i === 0 ? '\n|' + r.map(function () { return '---'; }).join('|') + '|' : ''); }).join('\n'));
+  }
+  return out.slice(0, 5).join('\n\n');
+}
 function cleanBody_(text) {
   var lines = String(text).replace(/\r/g, '').replace(/ /g, ' ').split('\n');
   var out = [];
@@ -1674,13 +2102,19 @@ function cleanBody_(text) {
   }
   // Kalan telefon/adres/web satırlarını at
   var hints = (_cfgCache && _cfgCache.addrHints) || [];
-  cleaned = cleaned.filter(function (l) {
+  // Sadece sondaki imza bölgesinde (son 12 satır); gövdedeki "LP: https://www.marka.com/..." gibi kurulum linkleri ASLA atılmaz
+  var tailFrom = Math.max(0, cleaned.length - 12);
+  cleaned = cleaned.filter(function (l, k) {
+    if (k < tailFrom) return true;
     var t = l.trim();
     if (SIGNATURE_LINE_RE.test(t)) return false;
+    if (/https?:\/\//i.test(t)) return true;
     var f = fold_(t);
     return !(t.length < 120 && hints.some(function (h) { return h && f.indexOf(h) >= 0; }));
   });
-  return cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 3500);
+  var txt = cleaned.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  if (txt.length > 6000) { txt = txt.slice(0, 6000); var nl = txt.lastIndexOf('\n'); if (nl > 5000) txt = txt.slice(0, nl); txt += '\n[…devamı kısaltıldı]'; }
+  return txt;
 }
 
 function uniq_(a) { var s = {}; return a.filter(function (x) { return s[x] ? false : (s[x] = true); }); }
@@ -1692,11 +2126,26 @@ function isTrue_(v) { return v === true || String(v).toUpperCase() === 'TRUE'; }
  *     Birden fazla CM ekliyse: markanın domaini / adı onun listesinde olan öne geçer,
  *     eşitlikte mesaj yazan > To > Cc ağırlığı belirler.
  *  2) Hiçbir CM ekli değilse: domain (ve gerekirse marka adı) TEK bir CM'e çıkıyorsa ona atanır.
- *     Aynı domaini birden fazla CM paylaşıyorsa (ör. bir markanın farklı ekipleri) ve hiçbiri maile
+ *     Aynı domaini birden fazla CM paylaşıyorsa (ör. ÖRN'nin farklı ekipleri) ve hiçbiri maile
  *     ekli değilse → Atanmamış (yanlış kişiye atamaktansa).
  *  NOT: Mail gövdesinde marka adı aranmaz (şirket imzasındaki adres parçaları markayla karışabiliyor).
  */
 function pickClientManager_(facts, cfg, ai, allowAiBrand) {
+  var r = pickClientManagerCore_(facts, cfg, ai, allowAiBrand);
+  var b = brandByDomain_(facts, cfg); if (b) r.brand = b;
+  return r;
+}
+/** BRANDS ayarındaki domainlerle markayı bul (marka filtresi bununla tutarlı çalışır) */
+function brandByDomain_(facts, cfg) {
+  if (!cfg.brandMap || !cfg.brandMap.length) return '';
+  var doms = (facts.participants || []).map(function (p) { return lc_(p.email || '').split('@')[1] || ''; }).filter(String);
+  for (var i = 0; i < cfg.brandMap.length; i++) {
+    var b = cfg.brandMap[i];
+    if (b.domains.some(function (d) { return doms.some(function (x) { return x === d || x.slice(-d.length - 1) === '.' + d; }); })) return b.name;
+  }
+  return '';
+}
+function pickClientManagerCore_(facts, cfg, ai, allowAiBrand) {
   var aiBrand = allowAiBrand ? String(ai.brand || '').trim() : '';
   var fb = fold_(aiBrand);
   var extDomains = facts.participants.map(function (p) { return p.email.split('@')[1] || ''; })
@@ -1706,7 +2155,7 @@ function pickClientManager_(facts, cfg, ai, allowAiBrand) {
   };
   var brandHit = function (c) {
     if (!fb) return '';
-    // En spesifik (en uzun) eşleşen marka adı: "Marka Home" > "Marka"
+    // En spesifik (en uzun) eşleşen marka adı: "ÖRN Home" > "ÖRN"
     return c.brands.filter(function (b) { var f = fold_(b); return f && (f === fb || fb.indexOf(f) >= 0); })
       .sort(function (x, y) { return fold_(y).length - fold_(x).length; })[0] || '';
   };
@@ -1728,6 +2177,12 @@ function pickClientManager_(facts, cfg, ai, allowAiBrand) {
 
   // 1) Maile ekli CM'ler
   var inThread = cfg.cms.filter(function (c) { return scoreOf(c) > 0; });
+  // Müşteri bağlamı yok (dış katılımcı yok, marka yok): şirket içi duyuru/dağıtım listesi ya da birden fazla CM'in
+  // sadece cevap yazdığı iç yazışma → bir CM'e ait iş değildir
+  var clientCtx = extDomains.length > 0 || !!fb || cfg.cms.some(function (c) { return brandHit(c); });
+  if (!clientCtx && !facts.isJira && (facts.isDistribution || facts.groupList || inThread.length > 1)) {
+    return { name: 'Atanmamış', email: '', brand: aiBrand, via: 'no-client' };
+  }
   if (inThread.length) {
     var best = inThread.map(function (c) {
       var match = (domainHit(c) ? 2 : 0) + (brandHit(c) ? 1 : 0);
@@ -1736,7 +2191,7 @@ function pickClientManager_(facts, cfg, ai, allowAiBrand) {
     return result(best, 'thread');
   }
 
-  // 1b) Jira: gönderen adı "Selin Kaya (Jira)" gibi gelir → CM adıyla eşleştir
+  // 1b) Jira: gönderen adı "Ayşe Yılmaz (Jira)" gibi gelir → CM adıyla eşleştir
   if (facts.isJira) {
     var jn = facts.participants.map(function (p) { return fold_(String(p.name || '').replace(/\(jira\)/i, '')); });
     var jc = cfg.cms.filter(function (c) { var f = fold_(c.name); return f && jn.indexOf(f) >= 0; });
@@ -1797,7 +2252,7 @@ function buildPrompt_(facts, cfg) {
     'Şirket içi domain(ler): ' + cfg.internalDomains.join(', '),
     '',
     'ÖNEMLİ AYRIMLAR:',
-    '- performans@, kreatif@, data@ gibi şirket içi Google Group adreslerinden gelen mailler EKİP DAĞITIM LİSTESİDİR, newsletter DEĞİLDİR. İçerikte gerçek bir iş konuşuluyorsa gerçek iş olarak değerlendir.',
+    '- tokyo@, ad@, mt@ gibi şirket içi Google Group adreslerinden gelen mailler EKİP DAĞITIM LİSTESİDİR, newsletter DEĞİLDİR. İçerikte gerçek bir iş konuşuluyorsa gerçek iş olarak değerlendir.',
     '- Marka = işin yapıldığı müşteri. Marka adını mailin konusu, müşterinin mail domaini ve konuşulan işten çıkar.',
     '  İMZALARDAKİ ADRESLERİ, ŞİRKET BİLGİLERİNİ, YASAL UYARILARI dikkate ALMA' + (cfg.ADDRESS_HINTS ? ' (ör. şirket adresi "' + cfg.ADDRESS_HINTS + '" bir marka değildir)' : '') + '.',
     '- Otomatik bildirim (reklam platformu uyarısı, newsletter, bounce, otomatik yanıt/OOO) gerçek iş değildir (is_real_work=false).',
@@ -1818,11 +2273,17 @@ function buildPrompt_(facts, cfg) {
     'DURUM (status) — thread\'in ŞU ANKİ durumu:',
     'MY_REPLY = kullanıcıdan cevap/onay/aksiyon bekleniyor ve son söz kullanıcıda değil.',
     'WAITING_CM = Marka (müşteri) talep iletti, sorumlu CM henüz cevap vermedi / aksiyon aldığını yazmadı.',
+    '  ÖNEMLİ: Kullanıcı (board sahibi) CM yerine markaya cevap verdiyse işi kendisi üstlenmiştir; artık CM\'in cevap vermesi beklenmez. Kullanıcı işi üstlendiyse ("düzenliyoruz", "yayına alıyoruz") → IN_PROGRESS; markadan açıkça bir şey istediyse → WAITING_CLIENT; konu kapandıysa → COMPLETED. Tek istisna: kullanıcı markaya cevap vermeden işi CM\'e/ekibe devrettiyse (my_reply_effect=DELEGATED) → WAITING_CM.',
     'IN_PROGRESS = CM veya ekip cevap verdi, iş iç ekiplerde/Jira\'da devam ediyor; BIZ tarafında hâlâ yapılacak iş var.',
     'WAITING_CLIENT = BIZ (CM, ekip veya kullanıcı) markaya son mesajı iletti VE bu son mesajda markadan AÇIKÇA bir şey istendi (soru, onay, geri bildirim, materyal, karar, teyit) ya da markanın dönüş yapması net şekilde gerekiyor; BIZ tarafında bekleyen bir iş YOK.',
     '  Markadan bir şey isteniyorsa (belge/doküman talebi, onay, bilgi, materyal, erişim, karar) — soru cümlesi olmasa bile, ör. "aşağıdaki belgelerin iletilmesi gerekmektedir" — WAITING_CLIENT ve client_request DOLU olmalı.',
     '  DİKKAT: Son BIZ mesajı sadece teslim/bilgilendirme ise ("kurulumları tamamladık", "preview linkleri aşağıda", "yayına aldık", "raporu iletiyoruz") ve markadan hiçbir şey istenmiyorsa → COMPLETED (WAITING_CLIENT DEĞİL). "Marka muhtemelen inceler" varsayımı yapma; sadece mailde yazanı esas al.',
     '  Örnek: CM öneri/plan/rapor gönderdi ve "onayınızı bekliyoruz", "değerlendirmenizi rica ederiz" dedi → WAITING_CLIENT (IN_PROGRESS DEĞİL).',
+    'my_reply_effect: SADECE thread\'deki SON mesaj kullanıcının kendi mesajıysa doldur, değilse NONE. Durumu kullanıcının bu son cevabının İÇERİĞİ belirler:',
+    '  ASKED_CLIENT = markadan/dış taraftan açıkça bir şey istedi (soru, onay, materyal, bilgi, karar) → status=WAITING_CLIENT.',
+    '  DELEGATED = markaya cevap vermeden işi CM\'e/ekibe devretti ya da onlardan bir şey istedi ("Ayşe bakabilir misin?", "+Mert bunu kurar mısın", "ekibe ilettim, dönüşlerini bekliyorum") → iş ekipte, CM/ekibin dönmesi bekleniyor → status=WAITING_CM.',
+    '  TOOK_OVER = işi kendisi üstlendi ya da dönüş sözü verdi ("düzenliyoruz", "yarın iletiyorum", "kontrol edip dönüyorum") → status=IN_PROGRESS.',
+    '  CLOSED = konuyu kapattı (teslim etti, onayladı, teşekkür etti, "tamamdır", "yayına aldık") ve kimseden bir şey beklemiyor → status=COMPLETED.',
     'waiting_on: Bir sonraki adımı KİM atmalı? "BIZ" (kullanıcı, CM, iç ekipler, Jira), "CLIENT" (marka: onay, geri bildirim, materyal, karar) veya "NONE" (bilgi amaçlı / kapandı).',
     '  DİKKAT: Son mesajı biz (CM/ekip/kullanıcı) markaya YA DA dış bir tarafa (Google/Meta/TikTok ekipleri, partner ajans, tedarikçi) gönderdiysek ve şimdi onlardan cevap/teyit/inceleme bekleniyorsa top DIŞARIDADIR → waiting_on=CLIENT, status=WAITING_CLIENT. "Dış taraftan dönüş bekliyoruz" işin bizde olduğu anlamına GELMEZ; BIZ sadece kendi yapması gereken bir iş varsa waiting_on=BIZ olur.',
     'COMPLETED = Güncel talep karşılandı (teslim edildi, yayına alındı, onaylandı) ve açık konu kalmadı.',
@@ -1841,8 +2302,8 @@ function buildPrompt_(facts, cfg) {
     JSON.stringify({
       konu: facts.subject,
       mesaj_sayisi: facts.msgCount,
-      to_da_sadece_efekan: facts.onlyMeInTo,
-      efekana_isimle_hitap: facts.directToMe,
+      to_da_sadece_kullanici: facts.onlyMeInTo,
+      kullaniciya_isimle_hitap: facts.directToMe,
       sirket_ici_grup_listesi: facts.groupList,
       genis_dagitim: facts.isDistribution,
       tum_mesajlar_otomatik_gorunuyor: facts.isMachine,
@@ -1860,13 +2321,14 @@ function buildPrompt_(facts, cfg) {
     '',
     'SADECE şu JSON\'u döndür (Türkçe, kısa ve net):',
     '{',
-    '  "title": "kartta görünecek 3-8 kelimelik iş başlığı (Jira ise issue anahtarıyla, ör. MRKADS-447 Günlük kontrol)",',
+    '  "title": "kartta görünecek 3-8 kelimelik iş başlığı (Jira ise issue anahtarıyla, ör. ORNPERF-447 Günlük kontrol)",',
     '  "brand": "müşteri marka adı veya boş",',
     '  "client_manager_email": "listeden sorumlu CM maili veya boş",',
     '  "priority": 1-5,',
     '  "priority_reason": "tek kısa cümle",',
     '  "status": "MY_REPLY|WAITING_CM|IN_PROGRESS|WAITING_CLIENT|COMPLETED|FYI",',
     '  "waiting_on": "BIZ|CLIENT|NONE",',
+    '  "my_reply_effect": "ASKED_CLIENT|DELEGATED|TOOK_OVER|CLOSED|NONE",',
     '  "addressed_to_me": true/false,',
     '  "requires_my_action": true/false,',
     '  "is_real_work": true/false,',
@@ -1894,7 +2356,8 @@ function buildPrompt_(facts, cfg) {
 /** Son mesaja "tümünü yanıtla" alıcıları ve hitap kuralı (kodla belirlenir, AI'a bırakılmaz) */
 function replyAudience_(facts, cfg) {
   var last = facts.lastMessage || facts.messages[facts.messages.length - 1] || {};
-  var all = [last.from].concat(last.to || [], last.cc || []).filter(function (a) { return a && a.email; });
+  var all = facts.rcptOverride && facts.rcptOverride.length ? facts.rcptOverride.map(function (e) { return { email: e, name: '' }; })
+          : [last.from].concat(last.to || [], last.cc || []).filter(function (a) { return a && a.email; });
   var seen = {}, rec = [];
   all.forEach(function (a) { var e = lc_(a.email); if (e === cfg.myEmail || seen[e]) return; seen[e] = 1; rec.push(a); });
   var roles = rec.map(function (a) { return roleOf_(a.email, cfg); });
@@ -1914,13 +2377,17 @@ function buildReplyPrompt_(facts, cfg, memory, hint) {
     if (used + block.length > budget && convo.length) break;
     convo.unshift(block); used += block.length;
   }
+  var lastM = facts.messages[facts.messages.length - 1] || {};
   return [
-    'Sen ' + cfg.MY_NAME + '\'sın. Aşağıdaki mail thread\'inin SON mesajına onun adına, birinci ağızdan cevap taslağı yaz.',
-    'BUGÜN: ' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM.yyyy'),
+    lastM.role === 'ME' && hint
+      ? 'Sen ' + cfg.MY_NAME + '\'sın. Aşağıdaki mail thread\'inde SON mesaj senin. Bu thread\'e onun adına, birinci ağızdan yeni bir TAKİP mesajı yazacaksın; konusu aşağıdaki NOT\'taki gelişme.'
+      : 'Sen ' + cfg.MY_NAME + '\'sın. Aşağıdaki mail thread\'inin SON mesajına onun adına, birinci ağızdan cevap taslağı yaz.',
+    'ŞU AN: ' + nowStr_(),
+    'ZAMAN KURALI: Mesajların tarih ve saatine bak. Cevap en güncel duruma göre yazılır; daha önce cevaplanmış, kapanmış ya da eski konuları yeniden açma, eski bir sorunun cevabını yeni gibi tekrar etme. "Bugün", "yarın", "Cuma" gibi ifadeleri ŞU AN\'a göre doğru kullan.',
     'CEVABIN GİDECEĞİ KİŞİLER (tümünü yanıtla): ' + aud.rec.map(function (a) { return fmtAddr_(a) + ' [' + roleOf_(a.email, cfg) + ']'; }).join(', '),
     'HİTAP KURALI (zorunlu): ' + aud.rule,
     'Account/client manager listesi: ' + (cfg.cms || []).map(function (c) { return c.name + ' <' + c.email + '>'; }).join(', '),
-    hint ? 'KULLANICININ NOTU (cevap bunu söylemeli): ' + String(hint).slice(0, 500) : '',
+    hint ? 'KULLANICININ NOTU (cevap bunu söylemeli): ' + String(hint).slice(0, 12000) : '',
     'İmza ekleme (Gmail imzası otomatik eklenir). Bilmediğin tarih/rakam/isim için [KÖŞELİ PARANTEZ] yer tutucu bırak.',
     '',
     (writingStyle_() ? '--- YAZI AVATARI ---\n' + writingStyle_() + '\n--- YAZI AVATARI SONU ---'
@@ -1933,17 +2400,1186 @@ function buildReplyPrompt_(facts, cfg, memory, hint) {
     'SADECE şu JSON\'u döndür: {"reply": "gönderilmeye hazır mail gövdesi"}'
   ].join('\n');
 }
+/** Board: "Jira'ya aktar" — işi ekibe iletmek için Jira task başlığı + açıklaması (kullanıcının ağzından) */
+function generateJiraText(threadId, hint) {
+  var cfg = getConfig_();
+  var th = apiThread_(String(threadId));
+  if (!th || !th.exists()) throw new Error('Thread bulunamadı');
+  var db = loadDb_(), row = db.byId[String(threadId)];
+  var facts = extractFacts_(th, cfg, null);
+  var budget = 30000, used = 0, convo = [];
+  for (var i = facts.messages.length - 1; i >= 0; i--) {
+    var m = facts.messages[i];
+    var block = '### ' + Utilities.formatDate(m.date, 'Europe/Istanbul', 'dd.MM.yyyy HH:mm') + ' | ' + (m.from.name || '') + ' <' + m.from.email + '> [' + m.role + ']\n' + m.body + '\n';
+    if (used + block.length > budget && convo.length) break;
+    convo.unshift(block); used += block.length;
+  }
+  var me = cfg.MY_NAME || 'kullanıcı';
+  var atts = []; try { atts = getThreadAttachments(threadId); } catch (e) {}
+  var attAi = attachmentsForAi_(atts);
+  var prompt = [
+    'Sen ' + me + '\'sın. Aşağıdaki mail thread\'indeki işi ajans içindeki iki uygulama ekibine iletmek için İKİ AYRI Jira task\'ı hazırlayacaksın: biri SM ekibine, biri Google ekibine. ' + me + ' bunları Jira\'ya kopyala yapıştır yapacak.',
+    'EKİPLER:',
+    '- SM ekibi: Meta (Facebook/Instagram), TikTok, Snapchat, Pinterest gibi sosyal medya reklam kurulumları, kitleler, kreatif yüklemeleri, katalog kampanyaları.',
+    '- Google ekibi: Google Ads (Search, PMax, Demand Gen, Shopping, App), YouTube, Merchant Center, Google tarafı kitle/feed/ölçümleme işleri.',
+    '- Her task SADECE o ekibin yapacağı kısmı anlatır. İşin o ekibi hiç ilgilendirmiyorsa relevant=false yap, title ve body boş kalsın, reason alanına tek cümle neden yaz. Ortak bilgi (tarih, bütçe, markanın talebi) iki task\'ta da tekrar edebilir.',
+    'BUGÜN: ' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM.yyyy'),
+    row && row.brand ? 'Marka: ' + row.brand : '',
+    hint ? 'NOT (' + me + ' bunu özellikle istedi, açıklamaya yansıt): ' + String(hint).slice(0, 500) : '',
+    '',
+    JIRA_TITLE_RULE_,
+    (function () { var ex = jiraTitleExamples_(row && row.brand, threadId); return ex.length ? 'BU MARKANIN JIRA PROJESİNDEKİ SON BAŞLIKLAR (marka kısa adını ve dili buradan öğren; formatı yukarıdaki kurala göre kur):\n' + ex.map(function (t) { return '- ' + t; }).join('\n') : ''; })(),
+    'AÇIKLAMA KURALLARI:',
+    '- ' + me + '\'ın ağzından, ekibe yazıyormuş gibi. Konuşma dili, samimi ve rahat ama cıvık değil; laubali kalıp, şaka, emoji, ünlem yok.',
+    '- "Selam," ile başla. Kapanışta imza ya da "Sevgiler" yok; gerekiyorsa tek kısa cümleyle "Takvime göre yetişmesi önemli." gibi bitir. "Bitince buraya yaz, markaya bilgi geçerim", "Kurulumları tamamlayınca haber ver" gibi kapanış/geri bildirim cümleleri YAZMA, ekip bunu zaten biliyor.',
+    '- Her cümle büyük harfle başlar. Noktalama olarak nokta ve virgül kullan, soru sorarken soru işareti kullan. Noktalı virgül, ünlem, üç nokta, parantez içi uzun açıklama kullanma.',
+    '- Tek ve basit iş ise 2-4 cümle yeter. Çok detay varsa (birden fazla kampanya, tarih, bütçe, görsel, link) kısa bir giriş cümlesinden sonra "-" ile madde madde yaz; gerekirse "Detaylar:" gibi tek kelimelik başlık kullanabilirsin.',
+    '- İçerik: Markanın tespiti ve gerekçesi (ne gördü, neden istiyor), ne yapılacak, gerekli detaylar (kampanya/kitle adları birebir, rakamlar, tarihler, bütçe, linkler, görseller), teslim/yayın tarihi.',
+    JIRA_CONTEXT_RULE_,
+    JIRA_FORMAT_RULE_,
+    '- Mailde olmayan bilgiyi uydurma. Bilinmeyen ama gerekli bilgi için [köşeli parantez] bırak. Gelen maildeki imza, yasal uyarı, alıntı gibi gereksiz şeyleri alma.',
+    '- Markanın mail metnini olduğu gibi yapıştırma, ekibin anlayacağı şekilde toparla. Linkleri ve kampanya adlarını değiştirme.',
+    '- KURULUM BİLGİLERİNE DOKUNMA: Markanın gönderdiği reklam/kurulum metinlerini ve etiketlerini (Primary text, Headline, Description, LP / landing page, URL, CTA, kampanya/kitle/set adları, UTM, görsel/video adları) mailde nasıl yazıyorsa öyle aktar. Etiketleri Türkçeye çevirme ("Başlık", "Açıklama", "Ana metin" deme), metinleri yeniden yazma, kısaltma, düzeltme. Sadece kendi giriş/açıklama cümlelerini toparla.',
+    '',
+    attAi.text,
+    atts.length ? '- EKLER: Eklerin içeriğine (dosya adı, birlikte geldiği mesaj, görselin kendisi) bakarak o ekibin işi yapmak için GERÇEKTEN ihtiyaç duyduğu ekleri seç ve "attach" listesine ref ile yaz (ör. ["E3","E5"]). Aynı dosyanın eski sürümü yerine en yenisini seç. İmza/logo, ekran görüntüsü olarak sadece bilgi amaçlı paylaşılmış ya da o ekibi ilgilendirmeyen dosyaları seçme (ör. SM ekibine sadece Meta/TikTok kreatifleri, Google ekibine Google için olanlar). Görseller link olarak (WeTransfer, Drive) geldiyse linki açıklamada aynen ver.' : '',
+    atts.length ? '- GÖRSEL GÖMME: Ekibin işi doğru anlaması için bir görseli GÖRMESİ gerekiyorsa (reklam önizlemesi, kapatılacak/güncellenecek kampanyanın ekran görüntüsü, kreatif, panel ekranı, tablo görüntüsü) açıklamada o görselin ilgili olduğu cümlenin hemen altına tek başına bir satır olarak [[E2]] yaz (E2 yerine görselin ref\'i). O görsel tam orada açıklamanın içinde gösterilir. Gömdüğün görselleri "attach" listesine de ekle. Gömülmeyen ekler için açıklamada kısaca "Dosyalar ekte." de. Bilgi amaçlı, imza/logo ya da işle ilgisiz görselleri gömme.' : '',
+    '',
+    'THREAD (kronolojik):',
+    convo.join('\n'),
+    '',
+    'SADECE şu JSON\'u döndür: {"sm": {"relevant": true/false, "title": "...", "body": "...", "reason": "", "attach": ["E1"]}, "google": {"relevant": true/false, "title": "...", "body": "...", "reason": "", "attach": []}}'
+  ].join('\n');
+  var a = safeJson_(callGemini_(prompt, cfg, attAi.parts));
+  var pick = function (x, team) {
+    x = x || {}; var body = String(x.body || '').replace(/\r/g, '').trim();
+    var rel = x.relevant !== false && !!body;
+    var refs = (x.attach || []).map(function (r) { return String(r).trim().toUpperCase(); });
+    return { team: team, attach: rel ? atts.filter(function (t) { return refs.indexOf(t.ref) >= 0 || refs.indexOf(String(t.name).toUpperCase()) >= 0; }).map(function (t) { return t.id; }) : [], relevant: rel, title: rel ? jiraTitleFix_(x.title, team) : '', body: rel ? body : '', reason: rel ? '' : String(x.reason || 'Bu işte bu ekibe düşen bir kısım yok.').trim() };
+  };
+  var out = { tasks: [pick(a.sm, 'SM'), pick(a.google, 'Google')], attachments: atts };
+  if (!out.tasks.some(function (t) { return t.relevant; })) throw new Error('AI iki ekip için de metin üretemedi');
+  return out;
+}
+// ============================================================
+//  JIRA BAĞLANTISI — task aç / yorum yaz (REST v3, kişisel API token)
+//  Token kullanıcıya özel UserProperties'te durur; Claude ya da kod token girmez.
+// ============================================================
+function jiraSite_() {
+  if (!String(getConfig_().JIRA_SITE || '').trim()) throw new Error('Settings sayfasında JIRA_SITE boş (ör. https://firma.atlassian.net).');
+  var s = String((getConfig_().JIRA_SITE || '')).trim().replace(/\/+$/, '');
+  return /^https?:\/\//.test(s) ? s : 'https://' + s;
+}
+function jiraCreds_() {
+  var up = PropertiesService.getUserProperties();
+  var e = up.getProperty('JIRA_EMAIL'), t = up.getProperty('JIRA_TOKEN');
+  return e && t ? { email: e, token: t } : null;
+}
+function jiraFetch_(method, path, body, quiet) {
+  var c = jiraCreds_();
+  if (!c) throw new Error('Jira bağlı değil. Board\'daki 🧩 kutusundan ya da Sheet menüsünden "Jira\'yı bağla" ile API token gir.');
+  var opt = {
+    method: method, muteHttpExceptions: true,
+    headers: { Authorization: 'Basic ' + Utilities.base64Encode(c.email + ':' + c.token), Accept: 'application/json' }
+  };
+  if (body) { opt.contentType = 'application/json'; opt.payload = JSON.stringify(body); }
+  var res = UrlFetchApp.fetch(jiraSite_() + path, opt), code = res.getResponseCode(), txt = res.getContentText();
+  var js = null; try { js = txt ? JSON.parse(txt) : null; } catch (e) {}
+  if (code >= 300) {
+    if (quiet) return { _err: code, _body: js || txt };
+    var msg = js ? [].concat(js.errorMessages || [], Object.keys(js.errors || {}).map(function (k) { return k + ': ' + js.errors[k]; })).join(' · ') : '';
+    if (code === 401) msg = 'Jira token geçersiz ya da süresi dolmuş. Yeni token ile tekrar bağla.';
+    throw new Error('Jira ' + code + (msg ? ': ' + msg : ''));
+  }
+  return js;
+}
+/** Board / menü: kullanıcının kendi girdiği e-posta + API token'ı kaydeder ve test eder */
+function jiraConnect(email, token) {
+  email = String(email || '').trim(); token = String(token || '').trim();
+  if (!email || !token) throw new Error('E-posta ve API token gerekli');
+  var up = PropertiesService.getUserProperties(), old = { e: up.getProperty('JIRA_EMAIL'), t: up.getProperty('JIRA_TOKEN') };
+  up.setProperties({ JIRA_EMAIL: email, JIRA_TOKEN: token });
+  try {
+    var me = jiraFetch_('get', '/rest/api/3/myself');
+    up.setProperty('JIRA_ACCOUNT', JSON.stringify({ id: me.accountId, name: me.displayName }));
+    CacheService.getUserCache().removeAll(['JIRA_HIST', 'JIRA_PROJ']);
+    return { ok: true, name: me.displayName };
+  } catch (e) {
+    if (old.e && old.t) up.setProperties({ JIRA_EMAIL: old.e, JIRA_TOKEN: old.t }); else { up.deleteProperty('JIRA_EMAIL'); up.deleteProperty('JIRA_TOKEN'); }
+    throw e;
+  }
+}
+function jiraDisconnect() {
+  var up = PropertiesService.getUserProperties();
+  ['JIRA_EMAIL', 'JIRA_TOKEN', 'JIRA_ACCOUNT'].forEach(function (k) { up.deleteProperty(k); });
+  return true;
+}
+function promptJira() {
+  var ui = SpreadsheetApp.getUi(), cfg = getConfig_();
+  var a = ui.prompt('Jira bağla (1/2)', 'Jira\'ya giriş yaptığın e-posta (boş bırakırsan ' + cfg.MY_EMAIL + '):', ui.ButtonSet.OK_CANCEL);
+  if (a.getSelectedButton() !== ui.Button.OK) return;
+  var b = ui.prompt('Jira bağla (2/2)', 'id.atlassian.com/manage-profile/security/api-tokens adresinden "Create API token" ile aldığın token\'ı yapıştır:', ui.ButtonSet.OK_CANCEL);
+  if (b.getSelectedButton() !== ui.Button.OK) return;
+  try { var r = jiraConnect(a.getResponseText().trim() || cfg.MY_EMAIL, b.getResponseText()); ui.alert('Jira bağlandı: ' + r.name); }
+  catch (e) { ui.alert('Bağlanamadı: ' + e.message); }
+}
+function jiraSearch_(jql, fields, max) {
+  var r = jiraFetch_('post', '/rest/api/3/search/jql', { jql: jql, maxResults: max || 50, fields: fields });
+  return (r && r.issues) || [];
+}
+// ---------- Jira task başlığı formatı ----------
+// Ekibin Jira'da yerleşik kullandığı yapı (ORNPERF, ORNEXP, GRPADS, XYZADS, MRKD, CCM, CHIC… başlıklarından):
+//   "<Marka kısa adı> | <İş> - <Kanal>"           ör. "Marka B | Flash %60 - SM", "Grup Marka | CRM Kitleleri - Google"
+//   "<Marka kısa adı> | <İş> - <Ay Yıl> - <Kanal>" ör. "ÖRN MO | PMax Harcama Kontrolü - Ekim 2026 - Google"
+// Kanal en sonda (SM / Google / DV360, etiketle aynı). "Kampanyası/Kampanyaları" eki kullanılmaz.
+var JIRA_TITLE_RULE_ = [
+  'BAŞLIK FORMATI (ekibin Jira\'daki yerleşik yapısı, zorunlu):',
+  '- "<Marka kısa adı> | <İş> - <Kanal>". Kanal EN SONDA: SM task\'inde "SM", Google task\'inde "Google".',
+  '- İş belli bir döneme/aya bağlıysa (kampanya dönemi, aylık takip, aylık bütçe) kanaldan önce ay ekle: "<Marka> | <İş> - <Ay Yıl> - <Kanal>" (ör. "Ekim 2026"). Döneme bağlı değilse ay yazma.',
+  '- Marka kısa adını bu projenin son başlıklarından al (ör. ÖRN, ÖRN Export, ÖRN RO, Marka B, Marka C, Marka E, Grup Marka, TG, Marka D). Ülke ya da alt marka varsa marka kısmına yaz ("ÖRN RO", "ÖRN MO").',
+  '- <İş>: 2-7 kelime, işin/kampanyanın kendi adı, markanın kullandığı ifadeyle (ör. "Flash %60", "Outlet %70\'e varan + 3 ürün %40", "PMax Video Güncellemeleri", "CRM Kitleleri", "Bütçe & KPI").',
+  '- "Kampanyası", "Kampanyaları" eki ya da kelimesi KULLANMA ("Flash Kampanyası" değil "Flash", "Brand Kampanyası" değil "Brand", "Install Kampanyası" değil "Install").',
+  '- İki ekibin başlığı kanal hariç birebir aynı olsun. Tırnak, emoji, sonda nokta yok. Bilmediğin parçayı uydurma.',
+  'ÖRNEKLER: "Marka B | Flash %60 - SM" · "Marka C | Final Sale 2 ürün 70 - Google" · "ÖRN RO | Summer Season App15 - Google" · "ÖRN Export | Extra 15 Install - Ekim 2026 - SM" · "Grup Marka | IBQML Kitleleri - Google"'
+].join('\n');
+/** AI başlığını formata oturt: "Kampanyası" eklerini at, ayraçları düzelt, kanal sonda olsun */
+function jiraTitleFix_(t, team) {
+  t = String(t || '').replace(/["“”]/g, '').replace(/\s+/g, ' ').trim().replace(/[.。]+$/, '');
+  if (!t) return '';
+  t = t.replace(/\s*\bkampanya(lar[ıi]|s[ıi])(?=$|[\s\-|,])/gi, '');   // JS \b Türkçe ı'yı harf saymaz → lookahead
+  var ch = team === 'SM' ? 'SM' : team === 'Google' ? 'Google' : '';
+  if (ch) {
+    // "Marka - SM - İş - Ay" (eski yapay format) → kanal parçasını ortadan çıkar, sona koy
+    var parts = t.split(/\s+-\s+/);
+    var rest = parts.filter(function (p) { return !/^(sm|google|meta|google ads|sosyal medya)$/i.test(p.trim()); });
+    if (rest.length !== parts.length || !new RegExp('-\\s*' + ch + '$', 'i').test(t)) {
+      t = rest.join(' - ');
+      if (t.indexOf('|') < 0 && rest.length >= 2) t = rest[0] + ' | ' + rest.slice(1).join(' - ');
+      t = t + ' - ' + ch;
+    }
+  }
+  return t.replace(/\s+-\s+-\s+/g, ' - ').replace(/\s{2,}/g, ' ').trim();
+}
+/** Markanın Jira projesindeki son başlıklar (6 saat cache). AI'ın eski "<Marka> - SM - …" ve "Kampanyası" örnekleri ayıklanır. */
+function jiraTitleExamples_(brand, threadId) {
+  try {
+    var key = '';
+    try { key = jiraPickProject_(brand, jiraHistory_(), jiraProjects_(), '', threadId).key || ''; } catch (e) {}
+    if (!key) return [];
+    var cache = CacheService.getUserCache(), ck = 'JTITLE_' + key, hit = cache.get(ck);
+    var list = hit ? JSON.parse(hit) : jiraSearch_('project = "' + key + '" AND created >= -180d ORDER BY created DESC', ['summary'], 60).map(function (i) { return String((i.fields || {}).summary || '').trim(); });
+    if (!hit) { try { cache.put(ck, JSON.stringify(list), 21600); } catch (e) {} }
+    var seen = {};
+    return list.filter(function (t) {
+      if (!t || /\s-\s(SM|Google)\s-\s/.test(t) || /kampanyas[ıi]|kampanyalar[ıi]/i.test(t)) return false;
+      var k = t.toLowerCase(); if (seen[k]) return false; seen[k] = 1; return true;
+    }).slice(0, 25);
+  } catch (e) { return []; }
+}
+/** Son 120 günde benim açtığım işler: proje, etiket, atanan, başlık (30 dk cache) */
+function jiraHistory_() {
+  var cache = CacheService.getUserCache(), hit = cache.get('JIRA_HIST');
+  if (hit) return JSON.parse(hit);
+  var out = jiraSearch_('reporter = currentUser() AND created >= -120d ORDER BY created DESC', ['summary', 'project', 'labels', 'assignee', 'issuetype'], 100).map(function (i) {
+    var f = i.fields || {};
+    return { key: i.key, s: f.summary || '', p: f.project && f.project.key, pn: f.project && f.project.name, l: f.labels || [],
+      a: f.assignee ? { id: f.assignee.accountId, n: f.assignee.displayName } : null, t: f.issuetype && f.issuetype.name };
+  });
+  try { cache.put('JIRA_HIST', JSON.stringify(out), 1800); } catch (e) {}
+  return out;
+}
+function jiraProjects_() {
+  var cache = CacheService.getUserCache(), hit = cache.get('JIRA_PROJ');
+  if (hit) return JSON.parse(hit);
+  var out = [];
+  for (var start = 0; start < 1000; start += 100) {
+    var r = jiraFetch_('get', '/rest/api/3/project/search?action=create&maxResults=100&startAt=' + start);
+    (r.values || []).forEach(function (p) { out.push({ k: p.key, n: p.name }); });
+    if (r.isLast || !(r.values || []).length) break;
+  }
+  try { cache.put('JIRA_PROJ', JSON.stringify(out), 21600); } catch (e) {}
+  return out;
+}
+// Ekip etiketleri: Settings > JIRA_TEAM_LABELS (ör. "SM=Sosyal_Medya, Google=Google_Ads"). Boşsa etiket eklenmez.
+function jiraTeamLabels_() { var o = {}; try { String(getConfig_().JIRA_TEAM_LABELS || '').split(',').forEach(function (p) { var kv = p.split('='); if (kv[1]) o[kv[0].trim()] = kv[1].trim(); }); } catch (e) {} return o; }
+var JIRA_KEY_RE_ = /\b([A-Z][A-Z0-9]{1,14}-\d{1,7})\b/;
+// ---------- Marka / iş → Jira projesi eşleştirmesi ----------
+// Sheet "JiraProjeleri": A = marka (virgülle diğer adları), B = Jira proje anahtarı, C = son güncelleme.
+// Board'da bir kartta proje seçilince: o iş (thread) + kartın markası bu projeye bağlanır; sonraki kartlarda otomatik gelir.
+function jiraMapSheet_() {
+  var ss = ss_(), sh = ss.getSheetByName(SHEET_JIRA);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_JIRA);
+    sh.getRange(1, 1, 1, 3).setValues([['Marka (virgülle diğer adları)', 'Jira Projesi', 'Son güncelleme']]).setFontWeight('bold');
+    sh.setFrozenRows(1); sh.setColumnWidth(1, 280);
+    // Eski öğrenilmiş eşleşmeleri taşı
+    try {
+      var old = JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_BRAND_MAP') || '{}');
+      var rows = Object.keys(old).map(function (b) { return [b, old[b], new Date()]; });
+      if (rows.length) sh.getRange(2, 1, rows.length, 3).setValues(rows);
+    } catch (e) {}
+  }
+  return sh;
+}
+function jiraMapRows_() {
+  var sh = jiraMapSheet_(), n = sh.getLastRow();
+  if (n < 2) return [];
+  return sh.getRange(2, 1, n - 1, 2).getValues().map(function (r, i) {
+    return { row: i + 2, names: String(r[0] || '').split(',').map(fold_).map(function (x) { return x.trim(); }).filter(String), key: String(r[1] || '').trim().toUpperCase() };
+  }).filter(function (x) { return x.names.length && x.key; });
+}
+/** Markaya kayıtlı proje: tam eşleşme, yoksa markanın içinde geçen en uzun ad */
+function jiraMapFind_(brand) {
+  var fb = fold_(brand).trim(); if (!fb) return '';
+  var rows = jiraMapRows_(), best = '', bestLen = 0;
+  for (var i = 0; i < rows.length; i++) if (rows[i].names.indexOf(fb) >= 0) return rows[i].key;
+  rows.forEach(function (r) { r.names.forEach(function (n) { if (n.length >= 3 && n.length > bestLen && fb.indexOf(n) >= 0) { best = r.key; bestLen = n.length; } }); });
+  return best;
+}
+function jiraMapSet_(brand, key) {
+  var fb = fold_(brand).trim(); if (!fb || !key) return;
+  var sh = jiraMapSheet_(), rows = jiraMapRows_();
+  for (var i = 0; i < rows.length; i++) if (rows[i].names.indexOf(fb) >= 0) { sh.getRange(rows[i].row, 2, 1, 2).setValues([[key, new Date()]]); return; }
+  sh.appendRow([String(brand).trim(), key, new Date()]);
+}
+function jiraThreadMap_() { try { return JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_THREAD_MAP') || '{}'); } catch (e) { return {}; } }
+/** Board: kartta Jira projesi seçildi → bu işin ve markanın projesi olarak kaydet */
+function setJiraProject(threadId, key) {
+  key = String(key || '').trim().toUpperCase().split(/[\s—-]/)[0];
+  if (!/^[A-Z][A-Z0-9_]{1,19}$/.test(key)) throw new Error('Geçersiz proje anahtarı');
+  var up = PropertiesService.getUserProperties(), tm = jiraThreadMap_(), id = String(threadId);
+  delete tm[id]; tm[id] = key;
+  var ids = Object.keys(tm); if (ids.length > 400) ids.slice(0, ids.length - 400).forEach(function (k) { delete tm[k]; });
+  up.setProperty('JIRA_THREAD_MAP', JSON.stringify(tm));
+  var row = loadDb_().byId[id], brand = row && row.brand ? String(row.brand) : '';
+  if (brand) jiraMapSet_(brand, key);
+  return { key: key, brand: brand };
+}
+function openJiraMap() {
+  var sh = jiraMapSheet_(); SpreadsheetApp.setActiveSheet(sh);
+}
+/** Kartın Jira projesi: konu anahtarı → bu işte seçilen → eşleştirme tablosu → tahmin (proje adı + kullanım sıklığı) */
+function jiraGuessProject_(brand, hist, projects, subjKey, threadId) {
+  return jiraPickProject_(brand, hist, projects, subjKey, threadId).key;
+}
+function jiraPickProject_(brand, hist, projects, subjKey, threadId) {
+  if (subjKey) return { key: subjKey.split('-')[0], src: 'subject' };
+  var tk = threadId ? jiraThreadMap_()[String(threadId)] : '';
+  if (tk) return { key: tk, src: 'thread' };
+  var mk = ''; try { mk = jiraMapFind_(brand); } catch (e) {}
+  if (mk) return { key: mk, src: 'config' };
+  return { key: jiraGuessByName_(brand, hist, projects), src: 'guess' };
+}
+function jiraGuessByName_(brand, hist, projects) {
+  var fb = fold_(brand);
+  var use = {}; hist.forEach(function (h, i) { use[h.p] = (use[h.p] || 0) + 1 + (hist.length - i) / 1000; });
+  if (!fb) return '';
+  var toks = fb.split(/[^a-z0-9]+/).filter(function (t) { return t.length >= 2; });
+  var best = '', bestScore = 0;
+  projects.forEach(function (p) {
+    var fn = fold_(p.n).replace(/&/g, ''), fk = fold_(p.k), sc = 0;
+    toks.forEach(function (t) { if (fn.indexOf(t) >= 0) sc += 10; if (fk.indexOf(t) === 0) sc += 6; });
+    if (fn.replace(/[^a-z0-9]/g, '').indexOf(fb.replace(/[^a-z0-9]/g, '')) >= 0) sc += 15;
+    if (!sc) return;
+    if (/marketing/.test(fn)) sc += 3;
+    if (/\[(seo|data|pmo)\]/.test(fn)) sc -= 8;
+    if (/perform|perads/.test(fn + ' ' + fk)) sc += 2;
+    sc += Math.min(use[p.k] || 0, 20);
+    if (sc > bestScore) { bestScore = sc; best = p.k; }
+  });
+  return best;
+}
+/** Board: Jira kutusu açılınca bağlam (bağlı mı, projeler, öneriler, atanan adayları, yorum hedefleri) */
+function getJiraContext(threadId) {
+  var c = jiraCreds_(), site = jiraSite_();
+  if (!c) return { connected: false, site: site, email: getConfig_().MY_EMAIL };
+  var db = loadDb_(), row = db.byId[String(threadId)] || {};
+  var subj = String(row.subject || ''), mk = subj.match(JIRA_KEY_RE_);
+  var hist = jiraHistory_(), projects = [];
+  try { projects = jiraProjects_(); } catch (e) {}
+  var subjKey = mk ? mk[1] : '';
+  var pick = jiraPickProject_(row.brand, hist, projects, subjKey, threadId), proj = pick.key;
+  // proje+etiket bazında son atananlar
+  var people = {}, TL = jiraTeamLabels_();
+  hist.forEach(function (h) {
+    if (!h.a) return;
+    var team = ''; Object.keys(TL).forEach(function (t) { if (!team && h.l.indexOf(TL[t]) >= 0) team = t; });
+    var k = h.p + '|' + team;
+    (people[k] = people[k] || []);
+    if (!people[k].some(function (x) { return x.id === h.a.id; })) people[k].push(h.a);
+  });
+  var recentProj = []; hist.forEach(function (h) { if (recentProj.indexOf(h.p) < 0) recentProj.push(h.p); });
+  var targets = [];
+  try {
+    targets = jiraSearch_('(reporter = currentUser() OR assignee = currentUser() OR watcher = currentUser()) AND updated >= -45d ORDER BY updated DESC', ['summary', 'labels'], 40)
+      .map(function (i) { return { key: i.key, s: i.fields.summary, team: jiraTeamOf_(i.fields.summary, i.fields.labels) }; });
+  } catch (e) {}
+  if (subjKey && !targets.some(function (t) { return t.key === subjKey; })) targets.unshift({ key: subjKey, s: subj.replace(/^\s*\[JIRA\]\s*/i, '') });
+  // Mail kartı: yorum yazılacak task'i kendiliğinden öner (Jira kartında marka mailini seçmenin tersi)
+  var sug = subjKey ? null : jiraSuggestTask_(threadId, row, targets, proj);
+  if (sug) { targets = targets.filter(function (t) { return t.key !== sug.key; }); targets.unshift({ key: sug.key, s: sug.s }); }
+  // Ekip başına öneri (SM ve Google yorum kutuları): konudaki anahtar kendi ekibine; her ekip için kendi task'leri arasından en olası olan
+  var suggest = {};
+  var subjTeam = subjKey ? ((targets.filter(function (t) { return t.key === subjKey; })[0] || {}).team || 'SM') : '';
+  if (subjKey) suggest[subjTeam] = { key: subjKey, why: 'mailin konusundaki task' };
+  ['SM', 'Google'].forEach(function (tm) {
+    if (suggest[tm]) return;
+    var other = tm === 'SM' ? 'Google' : 'SM', taken = suggest[other] ? suggest[other].key : '';
+    var cand = targets.filter(function (t) { return t.team === tm && t.key !== taken; });
+    var sg2 = cand.length ? jiraSuggestTask_(threadId, row, cand, proj) : null;
+    if (sg2) suggest[tm] = { key: sg2.key, why: sg2.why };
+  });
+  var me = {}; try { me = JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_ACCOUNT') || '{}'); } catch (e) {}
+  return { connected: true, suggest: suggest, site: site, me: me.name || c.email, brand: row.brand || '', project: proj, projectSrc: pick.src, subjectKey: subjKey, teams: splitList_(getConfig_().JIRA_TEAMS || ''),
+    commentStatus: String(getConfig_().JIRA_COMMENT_STATUS || '').trim(), commentDue: isTrue_(getConfig_().JIRA_COMMENT_DUE_TODAY),
+    recentProjects: recentProj.slice(0, 15), projects: projects, people: people, targets: targets.slice(0, 40),
+    suggestKey: sug ? sug.key : '', suggestWhy: sug ? sug.why : '' };
+}
+/**
+ * Bu mail için en olası Jira task'i:
+ *  +100 bu mailden açılan / bu mailden yorum yazılan task (JIRA_ISSUE_THREADS)
+ *  +60  mailde (konu, özet, hafıza) task anahtarı geçiyor
+ *  +20  task markanın Jira projesinde
+ *  +5   task başlığı ile mail konusu/başlığı arasında ortak her anlamlı kelime
+ *  En yüksek puan 25+ ise önerilir (proje + en az bir ortak kelime ya da bağlantı).
+ */
+function jiraSuggestTask_(threadId, row, targets, proj) {
+  var id = String(threadId), linked = [], map = jiraIssueThreads_();
+  Object.keys(map).forEach(function (k) { if (String(map[k]) === id) linked.push(k); });
+  var text = [row.subject, row.title, row.summary, row.memory, row.nextAction].join(' ');
+  var inText = (text.match(/\b[A-Z][A-Z0-9]{1,14}-\d{1,7}\b/g) || []);
+  var STOP = { 'icin': 1, 'ile': 1, 'olan': 1, 'reklam': 1, 'reklamlari': 1, 'kampanya': 1, 'kampanyasi': 1, 'kampanyalari': 1, 'hakkinda': 1, 'guncelleme': 1, 'talep': 1, 'google': 1, 'meta': 1, 'and': 1, 'the': 1, 'for': 1 };
+  var toks = foldTr_([row.subject, row.title].join(' ')).split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 4 && !STOP[w]; });
+  var cands = targets.slice();
+  linked.concat(inText).forEach(function (k) { if (!cands.some(function (t) { return t.key === k; })) cands.push({ key: k, s: '' }); });
+  var best = null;
+  cands.forEach(function (t, idx) {
+    var sc = 0, why = [];
+    if (linked.indexOf(t.key) >= 0) { sc += 100; why.push('bu mailden açılan/yorum yazılan task'); }
+    if (inText.indexOf(t.key) >= 0) { sc += 60; why.push('mailde task numarası geçiyor'); }
+    if (proj && t.key.split('-')[0] === proj) { sc += 20; why.push(proj + ' projesi'); }
+    var hay = foldTr_(t.s || ''), hit = toks.filter(function (w) { return hay.indexOf(w) >= 0; });
+    if (hit.length) { sc += 5 * hit.length; why.push('başlıkta ortak: ' + hit.slice(0, 3).join(', ')); }
+    sc -= idx * 0.01;   // eşitlikte daha yakın zamanda güncellenen
+    if (!best || sc > best.sc) best = { key: t.key, s: t.s, sc: sc, why: why.join(' · ') };
+  });
+  return best && best.sc >= 25 ? best : null;
+}
+function jiraIssueSearch(q) {
+  q = String(q || '').trim(); if (!q) return [];
+  var m = q.toUpperCase().match(JIRA_KEY_RE_);
+  if (m) { var i = jiraFetch_('get', '/rest/api/3/issue/' + m[1] + '?fields=summary', null, true); return i && !i._err ? [{ key: i.key, s: i.fields.summary }] : []; }
+  return jiraSearch_('summary ~ "' + q.replace(/["\\]/g, '') + '*" AND updated >= -180d ORDER BY updated DESC', ['summary'], 15)
+    .map(function (i) { return { key: i.key, s: i.fields.summary }; });
+}
+/** Düz metni Jira ADF'ye çevir: boş satır = paragraf, "-"/"•" satırları = madde, URL'ler link */
+function textToAdf_(text, mentions) {
+  var mnames = Object.keys(mentions || {}).sort(function (x, y) { return y.length - x.length; });
+  var withMentions = function (str) {          // "@Ad Soyad" → Jira mention düğümü (kişi bildirim alır)
+    if (!mnames.length) return [{ type: 'text', text: str }];
+    var out = [], rest = str;
+    while (rest) {
+      var best = -1, nm = '';
+      mnames.forEach(function (n) { var k = rest.indexOf('@' + n); if (k >= 0 && (best < 0 || k < best)) { best = k; nm = n; } });
+      if (best < 0) { out.push({ type: 'text', text: rest }); break; }
+      if (best > 0) out.push({ type: 'text', text: rest.slice(0, best) });
+      out.push({ type: 'mention', attrs: { id: mentions[nm], text: '@' + nm } });
+      rest = rest.slice(best + nm.length + 1);
+    }
+    return out;
+  };
+  var inline = function (s) {
+    var out = [], re = /https?:\/\/[^\s<>()]+/g, last = 0, m;
+    while ((m = re.exec(s))) {
+      if (m.index > last) out = out.concat(withMentions(s.slice(last, m.index)));
+      var u = m[0].replace(/[.,;:]+$/, '');
+      out.push({ type: 'text', text: u, marks: [{ type: 'link', attrs: { href: u } }] });
+      last = m.index + u.length; re.lastIndex = last;
+    }
+    if (last < s.length) out = out.concat(withMentions(s.slice(last)));
+    return out;
+  };
+  var content = [], para = [], bullets = [];
+  var flushP = function () { if (para.length) { var c = []; para.forEach(function (l, i) { if (i) c.push({ type: 'hardBreak' }); c = c.concat(inline(l)); }); content.push({ type: 'paragraph', content: c }); para = []; } };
+  var flushB = function () { if (bullets.length) { content.push({ type: 'bulletList', content: bullets.map(function (b) { return { type: 'listItem', content: [{ type: 'paragraph', content: inline(b) }] }; }) }); bullets = []; } };
+  String(text || '').replace(/\r/g, '').split('\n').forEach(function (ln) {
+    var t = ln.replace(/\s+$/, ''), b = t.match(/^\s*[-•*]\s+(.+)$/);
+    if (!t.trim()) { flushP(); flushB(); }
+    else if (b) { flushP(); bullets.push(b[1]); }
+    else { flushB(); para.push(t.trim()); }
+  });
+  flushP(); flushB();
+  if (!content.length) content.push({ type: 'paragraph', content: [] });
+  return { type: 'doc', version: 1, content: content };
+}
+/** Board: Jira'da task aç (onay board'da iki adımlı) */
+function createJiraIssue(threadId, team, projectKey, summary, body, assigneeId, mentions, attachments) {
+  projectKey = String(projectKey || '').trim().toUpperCase().split(/[\s—-]/)[0];
+  summary = String(summary || '').replace(/\s+/g, ' ').trim();
+  if (!projectKey) throw new Error('Proje seç');
+  if (!summary) throw new Error('Başlık boş');
+  var embeds = embedRefsOf_(body);
+  attachments = jiraWithEmbeds_(attachments, embeds, threadId);
+  var fields = { project: { key: projectKey }, summary: summary.slice(0, 250), description: textToAdf_(stripEmbeds_(body), mentions) };
+  var label = JIRA_TEAM_LABEL_[team]; if (label) fields.labels = [label];
+  if (assigneeId) fields.assignee = { accountId: assigneeId };
+  // Tarihler + ekip: Start date ve Due date bugün, Teams ayarlardan (JIRA_TEAMS, ör. Hera)
+  var cfg = getConfig_(), today = Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyyy-MM-dd');
+  var optional = [];
+  fields.duedate = today; optional.push('duedate');
+  var sf = String(cfg.JIRA_START_FIELD || '').trim(); if (sf) { fields[sf] = today; optional.push(sf); }
+  var tf = String(cfg.JIRA_TEAMS_FIELD || '').trim(), tv = splitList_(cfg.JIRA_TEAMS || '');
+  if (tf && tv.length) { fields[tf] = tv.map(function (v) { return { value: v }; }); optional.push(tf); }
+  var tryCreate = function (typeRef) { fields.issuetype = typeRef; return jiraFetch_('post', '/rest/api/3/issue', { fields: fields }, true); };
+  var r = tryCreate({ name: 'Task' });
+  if (r && r._err === 400 && JSON.stringify(r._body || '').toLowerCase().indexOf('issuetype') >= 0) {
+    var meta = jiraFetch_('get', '/rest/api/3/issue/createmeta/' + encodeURIComponent(projectKey) + '/issuetypes');
+    var types = (meta.issueTypes || meta.values || []).filter(function (t) { return !t.subtask; });
+    var pick = types.filter(function (t) { return /task|görev/i.test(t.name); })[0] || types[0];
+    if (!pick) throw new Error('Bu projede task tipi bulunamadı');
+    r = tryCreate({ id: pick.id });
+  }
+  if (r && r._err === 400 && assigneeId && JSON.stringify(r._body || '').indexOf('assignee') >= 0) { delete fields.assignee; r = jiraFetch_('post', '/rest/api/3/issue', { fields: fields }, true); }
+  // Bu projenin ekranında tarih/Teams alanı yoksa (ya da değer geçersizse) o alanları çıkarıp tekrar dene
+  if (r && r._err === 400 && r._body && r._body.errors) {
+    var bad = optional.filter(function (k) { return r._body.errors[k]; });
+    if (bad.length) { bad.forEach(function (k) { delete fields[k]; }); log_('WARN', 'Jira ' + projectKey + ': ' + bad.join(', ') + ' alan(lar)ı ayarlanamadı, onlarsız açıldı'); r = jiraFetch_('post', '/rest/api/3/issue', { fields: fields }, true); }
+  }
+  if (r && r._err) throw new Error('Jira ' + r._err + ': ' + JSON.stringify(r._body).slice(0, 300));
+  // marka → proje eşleşmesini öğren, cache'i tazele
+  try {
+    setJiraProject(threadId, projectKey);
+    jiraIssueThreadSet_(r.key, threadId);
+    CacheService.getUserCache().remove('JIRA_HIST');
+  } catch (e) {}
+  var up = uploadJiraAttachments_(r.key, attachments, embeds);
+  if ((embeds.length && Object.keys(up.names).length) || hasRich_(body)) {
+    var wr = jiraFetch_('put', '/rest/api/2/issue/' + r.key, { fields: { description: textToWiki_(body, mentions, up.names, up.dims) } }, true);
+    if (!(wr && wr._err)) {
+      try {
+        var ig = jiraFetch_('get', '/rest/api/3/issue/' + r.key + '?fields=description', null, true), dsc = ig && ig.fields && ig.fields.description;
+        if (dsc && jiraMediaDimsFix_(dsc, embedDimsSeq_(body, up))) jiraFetch_('put', '/rest/api/3/issue/' + r.key, { fields: { description: dsc } }, true);
+      } catch (e) { log_('WARN', 'Açıklama görsel boyutu düzeltilemedi ' + r.key + ': ' + e); }
+    }
+    if (wr && wr._err) { up.errors.push('Görseller açıklamaya gömülemedi (ekler task\'te): Jira ' + wr._err); log_('WARN', 'Jira açıklama (wiki) güncellenemedi ' + r.key + ': ' + JSON.stringify(wr._body).slice(0, 300)); }
+  }
+  return { key: r.key, url: jiraSite_() + '/browse/' + r.key, uploaded: up.ok, uploadErrors: up.errors, embedded: Object.keys(up.names).length };
+}
+/** Board (Jira kartı): task'in şu anki durumu ve gidebileceği durumlar */
+function getJiraTransitions(issueKey) {
+  var m = String(issueKey || '').toUpperCase().match(JIRA_KEY_RE_);
+  if (!m) throw new Error('Geçerli bir iş anahtarı yok');
+  var cur = jiraFetch_('get', '/rest/api/3/issue/' + m[1] + '?fields=status,assignee');
+  var f = cur.fields || {};
+  var tr = jiraFetch_('get', '/rest/api/3/issue/' + m[1] + '/transitions').transitions || [];
+  return { key: m[1], url: jiraSite_() + '/browse/' + m[1], status: (f.status && f.status.name) || '', assignee: (f.assignee && f.assignee.displayName) || '',
+    transitions: tr.map(function (t) { return { id: t.id, name: t.name, to: (t.to && t.to.name) || '' }; }) };
+}
+/** Board (Jira kartı): task'in durumunu değiştir (seçilen geçişi uygula) */
+function setJiraStatus(issueKey, transitionId, threadId) {
+  var m = String(issueKey || '').toUpperCase().match(JIRA_KEY_RE_);
+  if (!m) throw new Error('Geçerli bir iş anahtarı yok');
+  if (!transitionId) throw new Error('Durum seç');
+  jiraFetch_('post', '/rest/api/3/issue/' + m[1] + '/transitions', { transition: { id: String(transitionId) } });
+  var out = getJiraTransitions(m[1]);
+  if (threadId) {
+    try {
+      var lock = LockService.getUserLock(); lock.waitLock(15000);
+      try {
+        var db = loadDb_(), row = db.byId[String(threadId)];
+        if (row && (/(^|,)JIRA(,|$)/.test(String(row.flags || '')) || isJiraStatus_(row.status))) {
+          if (applyJiraStage_(row, jiraStageOf_(m[1], true))) { saveRow_(db, row); flushDb_(db); try { applyBoardLabels_(apiThread_(row.threadId), row, getConfig_()); } catch (e) {} }
+          out.card = toCard_(row);
+        }
+      } finally { lock.releaseLock(); }
+    } catch (e) { log_('WARN', 'Jira durumu sonrası kart güncellenemedi: ' + e); }
+  }
+  return out;
+}
+/** Board: mevcut bir Jira işine yorum yaz (mentions: {"Ad Soyad": accountId} → "@Ad Soyad" gerçek etiket olur) */
+function addJiraComment(issueKey, body, mentions, attachments, threadId) {
+  var m = String(issueKey || '').toUpperCase().match(JIRA_KEY_RE_);
+  if (!m) throw new Error('Geçerli bir iş anahtarı gir (ör. GRPADS-2219)');
+  if (!String(body || '').trim()) throw new Error('Yorum boş');
+  var embeds = embedRefsOf_(body);
+  attachments = jiraWithEmbeds_(attachments, embeds, threadId);
+  var up = uploadJiraAttachments_(m[1], attachments, embeds);
+  var r = null;
+  if ((embeds.length && Object.keys(up.names).length) || hasRich_(body)) {
+    r = jiraFetch_('post', '/rest/api/2/issue/' + m[1] + '/comment', { body: textToWiki_(body, mentions, up.names, up.dims) }, true);
+    if (r && !r._err && r.id) {
+      try {
+        var cp = '/rest/api/3/issue/' + m[1] + '/comment/' + r.id, cg = jiraFetch_('get', cp, null, true);
+        if (cg && cg.body && jiraMediaDimsFix_(cg.body, embedDimsSeq_(body, up))) jiraFetch_('put', cp, { body: cg.body }, true);
+      } catch (e) { log_('WARN', 'Yorum görsel boyutu düzeltilemedi ' + m[1] + ': ' + e); }
+    }
+    if (r && r._err) { log_('WARN', 'Jira yorumu (wiki) yazılamadı ' + m[1] + ', düz yoruma geçildi: ' + JSON.stringify(r._body).slice(0, 300)); up.errors.push('Görseller yoruma gömülemedi (ekler task\'te)'); r = null; }
+  }
+  if (!r) r = jiraFetch_('post', '/rest/api/3/issue/' + m[1] + '/comment', { body: textToAdf_(stripEmbeds_(body).replace(/\*\*([^*\n]+)\*\*/g, '$1'), mentions) });
+  var after = jiraAfterComment_(m[1]);
+  // Jira bildirimi kartından yorum: kartın durumunu SON yorumumun içeriği belirler (ekibe iş verdim → CM/ekip cevabı, markadan bekleniyor → Markada, üstlendim → Devam, kapandı → Tamamlandı, bilgi → Jira).
+  // Marka mailinden yorum: Jira işi ↔ marka maili eşleşmesi kaydedilir (Jira kartından "Markaya dön" için)
+  var card = null, effect = '';
+  if (threadId) {
+    try {
+      var row0 = loadDb_().byId[String(threadId)];
+      var isJ = row0 && (/(^|,)JIRA(,|$)/.test(String(row0.flags || '')) || isJiraStatus_(row0.status) || isJiraStatus_(row0.aiStatus));
+      if (row0 && !isJ) { jiraIssueThreadSet_(m[1], threadId); card = toCard_(row0); }
+      if (isJ) {
+        var cfgC = getConfig_(), stC = null; try { stC = jiraIssueState_(m[1], 1); } catch (e) {}
+        effect = jiraCommentEffect_(body, cfgC, stC);
+        jiraMyCommentSet_(threadId, m[1], effect);
+        var lock = LockService.getUserLock(); lock.waitLock(15000);
+        try {
+          var db = loadDb_(), row = db.byId[String(threadId)];
+          if (row && !isTrue_(row.closed) && !isSticky_(row.manualStatus)) {
+            var ns = JIRA_COMMENT_EFFECT_[effect] || 'JIRA';
+            row.status = ns; row.aiStatus = ns; row.manualStatus = ''; row.followUp = false; row.suggestedReply = '';
+            row.priorityReason = (JIRA_COMMENT_REASON_[effect] || 'Jira yorumun') + ' (' + m[1] + ')'; row.updatedAt = new Date().toISOString();
+            if (ns === 'JIRA' && effect !== 'DELEGATED') { try { applyJiraStage_(row, jiraStageOf_(m[1], true)); } catch (e) {} }
+            saveRow_(db, row); flushDb_(db);
+            try { applyBoardLabels_(apiThread_(row.threadId), row, cfgC); } catch (e) {}
+          }
+          if (row) card = toCard_(row);
+        } finally { lock.releaseLock(); }
+      }
+    } catch (e) { log_('WARN', 'Jira yorumu sonrası kart güncellenemedi: ' + e); }
+  }
+  return { key: m[1], url: jiraSite_() + '/browse/' + m[1] + '?focusedCommentId=' + r.id, uploaded: up.ok, uploadErrors: up.errors, card: card, effect: effect,
+    status: after.status, due: after.due, afterErrors: after.errors };
+}
+/** Yorumdan sonra: task'i JIRA_COMMENT_STATUS durumuna (ör. To Do) al ve Due date'i bugün yap. Hatalar yorumu bozmaz, sadece bildirilir. */
+function jiraAfterComment_(key) {
+  var cfg = getConfig_(), out = { status: '', due: '', errors: [] };
+  var target = String(cfg.JIRA_COMMENT_STATUS || '').trim();
+  if (target) {
+    try {
+      var cur = jiraFetch_('get', '/rest/api/3/issue/' + key + '?fields=status');
+      var curName = (cur.fields && cur.fields.status && cur.fields.status.name) || '';
+      if (fold_(curName) === fold_(target)) out.status = curName;
+      else {
+        var tr = (jiraFetch_('get', '/rest/api/3/issue/' + key + '/transitions').transitions || []);
+        var pick = tr.filter(function (t) { return t.to && fold_(t.to.name) === fold_(target); })[0] || tr.filter(function (t) { return fold_(t.name) === fold_(target); })[0];
+        if (!pick && /^to ?do$/i.test(target)) pick = tr.filter(function (t) { return t.to && t.to.statusCategory && t.to.statusCategory.key === 'new'; })[0];
+        if (pick) { jiraFetch_('post', '/rest/api/3/issue/' + key + '/transitions', { transition: { id: pick.id } }); out.status = (pick.to && pick.to.name) || target; }
+        else out.errors.push('"' + target + '" durumuna geçiş yok (şu an: ' + curName + ')');
+      }
+    } catch (e) { out.errors.push('durum: ' + (e.message || e)); }
+  }
+  if (isTrue_(cfg.JIRA_COMMENT_DUE_TODAY)) {
+    try {
+      var today = Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyyy-MM-dd');
+      jiraFetch_('put', '/rest/api/3/issue/' + key, { fields: { duedate: today } });
+      out.due = today;
+    } catch (e) { out.errors.push('due date: ' + (e.message || e)); }
+  }
+  return out;
+}
+/** Board: mail thread'indeki ekler ve görseller (Jira'ya yüklenebilecekler). İmza logoları gibi küçük gömülü görseller hariç. */
+function getThreadAttachments(threadId) {
+  var th = apiThread_(String(threadId)); if (!th || !th.exists()) return [];
+  var cfg = getConfig_(), out = [], seen = {}, msgs = th.getMessages().filter(function (m) { return !m.isDraft(); });
+  msgs.forEach(function (m, mi) {
+    var from = (parseAddresses_(m.getFrom())[0] || {}), date = m.getDate(), snippet = null;
+    var getSnippet = function () {
+      if (snippet === null) { try { snippet = cleanBody_(m.getPlainBody ? m.getPlainBody() : '').replace(/\s+/g, ' ').slice(0, 220); } catch (e) { snippet = ''; } }
+      return snippet;
+    };
+    (function walk(p) {
+      if (!p) return;
+      var mime = lc_(p.mimeType || ''), attId = p.body && p.body.attachmentId, size = (p.body && p.body.size) || 0, hd = {};
+      (p.headers || []).forEach(function (h) { hd[lc_(h.name)] = h.value; });
+      var cd = String(hd['content-disposition'] || ''), isImg = mime.indexOf('image/') === 0;
+      var inline = /inline/i.test(cd) || (!!hd['content-id'] && !/attachment/i.test(cd));
+      if (attId && (p.filename || isImg) && mime.indexOf('multipart/') !== 0 && mime !== 'text/calendar' && mime !== 'application/ics') {
+        var logo = isImg && (size < 4000 || (inline && size < 20000) || /^outlook-[a-z0-9]+\.(png|jpe?g|gif)$/i.test(p.filename || ''));   // imza logoları, ikonlar
+        var name = p.filename || ('gorsel-' + (out.length + 1) + '.' + (mime.split('/')[1] || 'png').replace('jpeg', 'jpg'));
+        var key = name + '|' + size;
+        if (!logo && !seen[key]) {
+          seen[key] = true;
+          out.push({ id: m.getId() + '|' + attId, name: name, mime: mime || 'application/octet-stream', size: size, image: isImg, inline: inline,
+            msgNo: mi + 1, msgId: m.getId(), from: from.name || from.email || '', fromEmail: lc_(from.email || ''),
+            role: roleOf_(lc_(from.email || ''), cfg), date: date ? date.toISOString() : '', snippet: getSnippet() });
+        }
+      }
+      (p.parts || []).forEach(walk);
+    })(m._m.payload);
+  });
+  out = out.slice(-40);
+  // Aynı adlı dosyanın sonraki mesajda yeni sürümü varsa eskisi "older" işaretlenir
+  out.forEach(function (a, i) { a.ref = 'E' + (i + 1); a.older = out.some(function (b, k) { return k > i && b.name === a.name; }); });
+  // Güncel konu: aynı loop'ta aylar önceki konuların ekleri varsayılan olarak gösterilmez.
+  //  - Son 3 mesaj (ve son mesajdan en fazla 10 gün önce) "güncel" sayılır; onların ekleri gösterilir.
+  //  - Son mesajlar geçmişteki bir eke atıf yapıyorsa ("önceki maildeki", "daha önce ilettiğimiz", "yukarıdaki dosya"…) tüm ekler gösterilir.
+  var n = msgs.length, lastAt = n ? msgs[n - 1].getDate().getTime() : 0, recentNos = {}, refPast = false;
+  var PAST_RE = /(önceki|eski|ilk|geçen|yukarıdaki|aşağıdaki|daha önce|evvelce|bir önceki)\s*(mail|maildeki|e-?posta|ek|ekler|ekteki|dosya|görsel|sunum|tablo|paylaş|ilet|gönder)|daha önce (ilet|paylaş|gönder)|(previous|earlier|attached earlier|below thread)/i;
+  for (var k = n - 1; k >= 0 && k >= n - 3; k--) {
+    var mk = msgs[k];
+    if (lastAt - mk.getDate().getTime() > 10 * 86400000) break;
+    recentNos[k + 1] = true;
+    try { if (PAST_RE.test(cleanBody_(mk.getPlainBody()))) refPast = true; } catch (e) {}
+  }
+  out.forEach(function (a) { a.recent = refPast || !!recentNos[a.msgNo]; });
+  return out;
+}
+/** Board: görsel eklerin küçük önizlemesi (data URI). Sadece ≤ 1.5 MB görseller, en fazla 16 tane. */
+function getAttachmentThumbs(list) {
+  var out = {};
+  (list || []).slice(0, 16).forEach(function (a) {
+    if (!a || !/^image\//.test(a.mime || '') || Number(a.size) > 1500000) return;
+    try {
+      var ids = String(a.id).split('|');
+      var data = gapi_(5, function () { return Gmail.Users.Messages.Attachments.get('me', ids[0], ids[1]).data; });
+      out[a.id] = 'data:' + a.mime + ';base64,' + String(data).replace(/-/g, '+').replace(/_/g, '/');
+    } catch (e) {}
+  });
+  return out;
+}
+/** AI'a ekleri anlatır: liste (ref, ad, boyut, kimden, hangi mesajla geldi) + seçili görsellerin kendisi (Gemini görseli görür) */
+function attachmentsForAi_(atts) {
+  if (!atts || !atts.length) return { text: '', parts: [] };
+  var fmt = function (n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; };
+  var lines = atts.map(function (a) {
+    return a.ref + ' | ' + a.name + ' | ' + fmt(a.size) + ' | ' + (a.image ? (a.inline ? 'mail içine gömülü görsel' : 'görsel eki') : 'dosya eki') +
+      ' | ' + (a.date ? Utilities.formatDate(new Date(a.date), 'Europe/Istanbul', 'dd.MM HH:mm') : '') + ' ' + a.from + (a.role ? ' [' + a.role + ']' : '') +
+      (a.older ? ' | ESKİ SÜRÜM (aynı adla daha yeni bir sürüm var)' : '') + (a.recent === false ? ' | ESKİ KONU (son mesajlarla ilgisi yok, gerekmedikçe seçme)' : '') + (a.snippet ? ' | birlikte gelen mesaj: "' + a.snippet + '"' : '');
+  });
+  var parts = [], n = 0;
+  atts.forEach(function (a) {
+    // Gemini'nin desteklediği görsel türleri: png, jpeg, webp, heic, heif (gif ve "image/jpg" yazımı reddediliyor)
+    var gm = String(a.mime || '').toLowerCase().replace('image/jpg', 'image/jpeg').replace('image/pjpeg', 'image/jpeg');
+    if (n >= 6 || !a.image || a.older || a.recent === false || a.size > 1500000 || !/^image\/(png|jpeg|webp|heic|heif)$/.test(gm)) return;
+    try {
+      var ids = a.id.split('|');
+      var data = gapi_(5, function () { return Gmail.Users.Messages.Attachments.get('me', ids[0], ids[1]).data; });
+      parts.push({ text: 'Görsel ' + a.ref + ' (' + a.name + '):' });
+      var b64 = typeof data === 'string' ? data.replace(/-/g, '+').replace(/_/g, '/') : Utilities.base64Encode(data);   // Gmail bazen bayt dizisi döndürüyor
+      parts.push({ inline_data: { mime_type: gm, data: b64 } });
+      n++;
+    } catch (e) {}
+  });
+  return { text: 'MAİLDEKİ EKLER (ref | ad | boyut | tür | tarih ve gönderen | not):\n' + lines.join('\n') + (n ? '\nGörsellerin kendileri de ekte, içeriklerine bak.' : ''), parts: parts };
+}
+/** Seçilen mail eklerini Jira işine yükler (her biri en fazla 20 MB) */
+/** Görselin gerçek piksel boyutu (PNG / JPEG / GIF / WebP başlığından). Bulunamazsa null. */
+function imgDims_(bytes) {
+  try {
+    var b = function (i) { return bytes[i] & 255; }, n = bytes.length;
+    if (n > 24 && b(0) === 0x89 && b(1) === 0x50 && b(2) === 0x4E && b(3) === 0x47) return { w: (b(16) << 24 | b(17) << 16 | b(18) << 8 | b(19)) >>> 0, h: (b(20) << 24 | b(21) << 16 | b(22) << 8 | b(23)) >>> 0 };
+    if (n > 10 && b(0) === 0x47 && b(1) === 0x49 && b(2) === 0x46) return { w: b(6) | b(7) << 8, h: b(8) | b(9) << 8 };
+    if (n > 30 && b(0) === 0x52 && b(1) === 0x49 && b(8) === 0x57 && b(9) === 0x45) {   // WebP
+      var f = String.fromCharCode(b(12), b(13), b(14), b(15));
+      if (f === 'VP8X') return { w: 1 + (b(24) | b(25) << 8 | b(26) << 16), h: 1 + (b(27) | b(28) << 8 | b(29) << 16) };
+      if (f === 'VP8 ') return { w: (b(26) | b(27) << 8) & 0x3fff, h: (b(28) | b(29) << 8) & 0x3fff };
+      if (f === 'VP8L') { var v = b(21) | b(22) << 8 | b(23) << 16 | b(24) << 24; return { w: (v & 0x3fff) + 1, h: ((v >> 14) & 0x3fff) + 1 }; }
+    }
+    if (n > 4 && b(0) === 0xFF && b(1) === 0xD8) {   // JPEG: SOF işaretçisini ara
+      var i = 2;
+      while (i + 9 < n) {
+        if (b(i) !== 0xFF) { i++; continue; }
+        var mk = b(i + 1); if (mk === 0xD8 || mk === 0x01 || (mk >= 0xD0 && mk <= 0xD7)) { i += 2; continue; }
+        var len = b(i + 2) << 8 | b(i + 3);
+        if (mk >= 0xC0 && mk <= 0xCF && mk !== 0xC4 && mk !== 0xC8 && mk !== 0xCC) return { w: b(i + 7) << 8 | b(i + 8), h: b(i + 5) << 8 | b(i + 6) };
+        i += 2 + len;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+/** Jira'nın wiki → ADF dönüşümü görsele boyut yazmazsa (varsayılan 200×183 kare kutu) yorum/açıklamadaki görsellere gerçek boyutu işle */
+function jiraMediaDimsFix_(adf, dimsSeq) {
+  var i = 0, changed = false;
+  (function walk(nd) {
+    if (!nd || typeof nd !== 'object') return;
+    if (nd.type === 'media' && nd.attrs) { var d = dimsSeq[i++]; if (d && d.w && d.h && (nd.attrs.width !== d.w || nd.attrs.height !== d.h)) { nd.attrs.width = d.w; nd.attrs.height = d.h; changed = true; } }
+    (nd.content || []).forEach(walk);
+  })(adf);
+  return changed;
+}
+/** Metindeki [[E#]] sırasıyla gömülen görsellerin boyutları */
+function embedDimsSeq_(text, up) {
+  return (String(text || '').match(/\[\[(E\d+)\]\]/gi) || []).map(function (t) { return t.replace(/[\[\]]/g, '').toUpperCase(); })
+    .filter(function (r) { return up.names[r]; }).map(function (r) { return up.dims[r] || null; });
+}
+function uploadJiraAttachments_(key, list, embedRefs) {
+  var res = { ok: 0, errors: [], names: {}, dims: {} };
+  embedRefs = embedRefs || [];
+  if (!list || !list.length) return res;
+  var c = jiraCreds_(); if (!c) { res.errors.push('Jira bağlı değil'); return res; }
+  list.forEach(function (a) {
+    try {
+      var parts = String(a.id || '').split('|'); if (parts.length < 2) throw new Error('geçersiz ek');
+      if (Number(a.size) > 20 * 1024 * 1024) throw new Error('20 MB\'den büyük');
+      var data = gapi_(5, function () { return Gmail.Users.Messages.Attachments.get('me', parts[0], parts[1]).data; });
+      var bytes = typeof data === 'string' ? Utilities.base64DecodeWebSafe(data) : data;   // Gmail bazen bayt dizisi döndürüyor
+      var ref = String(a.ref || '').toUpperCase(), fname = a.name || 'ek';
+      // Gömülecek görsel: aynı adlı dosyalar (image.png) karışmasın diye benzersiz ad
+      if (ref && embedRefs.indexOf(ref) >= 0) fname = ref + '_' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'HHmmss') + '_' + String(fname).replace(/[^\w.\-]+/g, '_').slice(-60);
+      var blob = Utilities.newBlob(bytes, a.mime || 'application/octet-stream', fname);
+      if (ref) { var dm = imgDims_(bytes); if (dm && dm.w && dm.h) res.dims[ref] = dm; }
+      var r = UrlFetchApp.fetch(jiraSite_() + '/rest/api/3/issue/' + key + '/attachments', {
+        method: 'post', muteHttpExceptions: true, payload: { file: blob },
+        headers: { Authorization: 'Basic ' + Utilities.base64Encode(c.email + ':' + c.token), 'X-Atlassian-Token': 'no-check', Accept: 'application/json' }
+      });
+      if (r.getResponseCode() >= 300) throw new Error('Jira ' + r.getResponseCode());
+      res.ok++;
+      try { var up = JSON.parse(r.getContentText() || '[]'); if (ref && up[0] && up[0].filename) res.names[ref] = up[0].filename; } catch (e) { if (ref) res.names[ref] = fname; }
+    } catch (e) { res.errors.push((a.name || 'ek') + ': ' + (e.message || e)); }
+  });
+  return res;
+}
+/** [[E2]] ile gömülen görsel, gönderilen ek listesinde yoksa thread'in eklerinden bulunup eklenir */
+function jiraWithEmbeds_(list, embeds, threadId) {
+  list = (list || []).slice();
+  var have = list.map(function (a) { return String(a.ref || '').toUpperCase(); });
+  var miss = embeds.filter(function (r) { return have.indexOf(r) < 0; });
+  if (miss.length && threadId) {
+    try { getThreadAttachments(threadId).forEach(function (a) { if (miss.indexOf(String(a.ref).toUpperCase()) >= 0) list.push(a); }); } catch (e) {}
+  }
+  return list;
+}
+/** Metindeki [[E2]] görsel işaretleri */
+function embedRefsOf_(text) { var out = []; String(text || '').replace(/\[\[(E\d+)\]\]/gi, function (_, r) { r = r.toUpperCase(); if (out.indexOf(r) < 0) out.push(r); return _; }); return out; }
+function stripEmbeds_(text) { return String(text || '').replace(/^[ \t]*\[\[E\d+\]\][ \t]*\n?/gim, '').replace(/\[\[E\d+\]\]/gi, '').replace(/\n{3,}/g, '\n\n'); }
+/** Düz metin → Jira wiki markup. Kampanya adlarındaki _ * - gibi işaretler kaçışlanır (biçime dönüşmesin), linkler ve @etiketler korunur. */
+/** Metinde Jira biçimlendirmesi (tablo / **kalın** / başlık / numaralı liste) var mı? Varsa yorum/açıklama wiki ile yazılır. */
+function hasRich_(text) {
+  var t = String(text || '');
+  return /^\s*\|.*\|\s*$/m.test(t) || /\*\*[^*\n]+\*\*/.test(t) || /^\s*#{1,6}\s+\S/m.test(t) || /^\s*\d+[.)]\s+\S/m.test(t);
+}
+/** Düz metin + hafif markdown → Jira wiki markup. Kampanya adlarındaki _ * - gibi işaretler kaçışlanır; linkler, @etiketler, [[E#]] görseller,
+ *  markdown tablolar (| a | b | + |---|), **kalın**, ### başlık, 1. numaralı liste, - madde (girintili → alt madde) desteklenir. */
+function textToWiki_(text, mentions, names, dims) {
+  mentions = mentions || {}; names = names || {}; dims = dims || {};
+  var men = Object.keys(mentions).sort(function (a, b) { return b.length - a.length; });
+  var esc = function (t) { return t.replace(/([*_^~+{}\[\]!|#\-])/g, '\\$1').replace(/\?\?/g, '\\?\\?'); };
+  var img = function (ref) { var R = String(ref).toUpperCase(), n = names[R], d = dims[R]; return n ? '!' + n + (d ? '|width=' + d.w + ',height=' + d.h : '') + '!' : ''; };   // gerçek boyut (thumbnail/kare kutu değil)
+  var tokRe = new RegExp('(https?:\\/\\/[^\\s<>|]+)|\\[\\[(E\\d+)\\]\\]|\\*\\*([^*\\n]+?)\\*\\*' + (men.length ? '|@(' + men.map(function (m) { return m.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')' : ''), 'gi');
+  var inl = function (body) {
+    var out = '', last = 0, m, re = new RegExp(tokRe.source, 'gi');
+    while ((m = re.exec(body))) {
+      out += esc(body.slice(last, m.index));
+      if (m[1]) out += m[1];
+      else if (m[2]) out += ' ' + img(m[2]) + ' ';
+      else if (m[3]) out += '*' + inl(m[3]).trim() + '*';
+      else if (m[4]) { var k = men.filter(function (x) { return x.toLowerCase() === m[4].toLowerCase(); })[0]; out += '[~accountid:' + mentions[k] + ']'; }
+      last = m.index + m[0].length;
+    }
+    return out + esc(body.slice(last));
+  };
+  var isRow = function (l) { return /^\s*\|.*\|\s*$/.test(l); };
+  var isSep = function (l) { return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l); };
+  var cells = function (l) { var c = l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|'); return c.map(function (x) { return x.trim(); }); };
+  var lines = String(text || '').replace(/\r/g, '').split('\n'), out = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (isRow(line) && !isSep(line)) {
+      // Tablo bloğu: ilk satır başlık (ardından --- satırı gelsin gelmesin)
+      var rows = [];
+      while (i < lines.length && (isRow(lines[i]) || isSep(lines[i]))) { if (!isSep(lines[i])) rows.push(cells(lines[i])); i++; }
+      i--;
+      var ncol = Math.max.apply(null, rows.map(function (r) { return r.length; }));
+      if (out.length && out[out.length - 1] !== '') out.push('');
+      rows.forEach(function (r, ri) {
+        while (r.length < ncol) r.push('');
+        var cs = r.map(function (c) { var v = inl(c).trim(); return v || ' '; });
+        out.push(ri === 0 ? '||' + cs.join('||') + '||' : '|' + cs.join('|') + '|');
+      });
+      if (i + 1 < lines.length && lines[i + 1].trim() !== '') out.push('');
+      continue;
+    }
+    var lone = line.match(/^\s*\[\[(E\d+)\]\]\s*$/i);
+    if (lone) { out.push(img(lone[1])); continue; }
+    var hm = line.match(/^\s*#{1,6}\s+(.*)$/);
+    if (hm) { out.push('h4. ' + inl(hm[1].replace(/\*\*/g, ''))); continue; }
+    var nm = line.match(/^(\s*)\d+[.)]\s+(.*)$/);
+    if (nm) { out.push((nm[1].length >= 2 ? '## ' : '# ') + inl(nm[2])); continue; }
+    var bm = line.match(/^(\s*)[-•–*]\s+(.*)$/);
+    if (bm) { out.push((bm[1].length >= 2 ? '** ' : '* ') + inl(bm[2])); continue; }
+    out.push(inl(line));
+  }
+  return out.join('\n');
+}
+/** Board: @etiket için Jira kullanıcı arama */
+function jiraUserSearch(q) {
+  q = String(q || '').trim(); if (q.length < 2) return [];
+  var r = jiraFetch_('get', '/rest/api/3/user/search?maxResults=10&query=' + encodeURIComponent(q)) || [];
+  return r.filter(function (u) { return u.accountType === 'atlassian' && u.active !== false; }).map(function (u) { return { id: u.accountId, n: u.displayName }; });
+}
+/** ADF → düz metin (açıklama ve yorumları okumak için) */
+function adfToText_(n) {
+  if (!n) return '';
+  if (typeof n === 'string') return n;
+  if (n.type === 'text') return n.text || '';
+  if (n.type === 'hardBreak') return '\n';
+  if (n.type === 'mention') return (n.attrs && n.attrs.text) || '@?';
+  if (n.type === 'emoji') return (n.attrs && (n.attrs.text || n.attrs.shortName)) || '';
+  if (n.type === 'inlineCard' || n.type === 'blockCard') return (n.attrs && n.attrs.url) || '';
+  var inner = (n.content || []).map(adfToText_).join('');
+  if (n.type === 'listItem') return '- ' + inner.trim() + '\n';
+  if (n.type === 'tableRow') return '| ' + (n.content || []).map(function (c) { return adfToText_(c).replace(/\s+/g, ' ').trim(); }).join(' | ') + ' |\n';
+  if (['paragraph', 'heading', 'codeBlock', 'blockquote', 'tableRow'].indexOf(n.type) >= 0) return inner.trim() + '\n';
+  return inner;
+}
+/** Bir Jira işinin güncel hali: başlık, durum, atanan, açıklama, son yorumlar ve etiketlenebilecek kişiler */
+function jiraIssueState_(key, nComments) {
+  var m = String(key || '').toUpperCase().match(JIRA_KEY_RE_);
+  if (!m) throw new Error('Geçerli bir iş anahtarı gir (ör. GRPADS-2219)');
+  var i = jiraFetch_('get', '/rest/api/3/issue/' + m[1] + '?fields=summary,status,assignee,reporter,description,comment,labels,duedate,updated,project,attachment&expand=changelog');
+  var f = i.fields || {}, people = {};
+  var addP = function (u) { if (u && u.accountId && u.displayName && u.accountType !== 'app') people[u.displayName] = u.accountId; };
+  addP(f.assignee); addP(f.reporter);
+  var cs = ((f.comment && f.comment.comments) || []);
+  cs.forEach(function (c) { addP(c.author); });
+  var me = {}; try { me = JSON.parse(PropertiesService.getUserProperties().getProperty('JIRA_ACCOUNT') || '{}'); } catch (e) {}
+  var comments = cs.slice(-(nComments || 10)).map(function (c) {
+    var mine = !!(c.author && ((me.id && c.author.accountId === me.id) || (me.name && c.author.displayName === me.name)));
+    return { author: (c.author && c.author.displayName) || '?', date: String(c.created || '').slice(0, 16).replace('T', ' '), ts: new Date(c.created).getTime() || 0,
+      mine: mine, text: adfToText_(c.body).replace(/\n{3,}/g, '\n\n').trim() };
+  });
+  // Durum geçmişi: son 6 durum değişikliği (kim, ne zaman, nereden nereye) — "top kimde" bağlamı
+  var statusHistory = [];
+  try {
+    ((i.changelog && i.changelog.histories) || []).forEach(function (h) {
+      (h.items || []).forEach(function (it) { if (it.field === 'status') statusHistory.push({ date: String(h.created || '').slice(0, 16).replace('T', ' '), ts: new Date(h.created).getTime() || 0,
+        author: (h.author && h.author.displayName) || '?', from: it.fromString || '', to: it.toString || '' }); });
+    });
+    statusHistory.sort(function (a, b) { return a.ts - b.ts; }); statusHistory = statusHistory.slice(-6);
+  } catch (e) {}
+  if (me.name) delete people[me.name];
+  return {
+    key: i.key, url: jiraSite_() + '/browse/' + i.key, summary: f.summary || '', status: (f.status && f.status.name) || '',
+    assignee: (f.assignee && f.assignee.displayName) || '', reporter: (f.reporter && f.reporter.displayName) || '',
+    project: (f.project && f.project.key) || '', labels: f.labels || [], due: f.duedate || '',
+    description: adfToText_(f.description).replace(/\n{3,}/g, '\n\n').trim(), comments: comments, commentCount: cs.length, people: people, statusHistory: statusHistory,
+    attachments: (f.attachment || []).map(function (x) { return x.filename; })
+  };
+}
+/** Board: yorum hedefi seçilince kısa özet (AI yok) */
+function getJiraIssueBrief(key) {
+  var s = jiraIssueState_(key, 3);
+  return { key: s.key, url: s.url, summary: s.summary, status: s.status, assignee: s.assignee, commentCount: s.commentCount,
+    last: s.comments.length ? s.comments[s.comments.length - 1] : null, people: s.people };
+}
+/** Jira metinlerinde ekibe sadece talimat değil, markanın verdiği bağlam da aktarılır */
+// Jira'da düzgün görünen biçim: metin wiki'ye çevrilir (textToWiki_) → tablo, kalın, başlık, liste Jira'nın kendi biçimine dönüşür
+var JIRA_FORMAT_RULE_ = [
+  'BİÇİMLENDİRME (metin Jira\'ya kendi biçimiyle aktarılır, gerektiğinde çekinmeden kullan):',
+  '- TABLO: Mailde tablo varsa ("[Maildeki tablo]" bölümü) ya da birden çok öğenin (ülke, kampanya, feed, product set, template, bütçe, tarih…) aynı özellikleri sıralanıyorsa bunu TABLO olarak yaz. Format: ilk satır başlık "| Ülke | Feed | Product Set Name | Template Name | Günlük Bütçe |", ikinci satır "|---|---|---|---|---|", sonra her öğe tek satır. Maildeki tablonun sütunlarını koru, gerekirse mailde ayrı verilen bilgiyi (ör. bütçe) yeni sütun olarak ekle. Hücre değerlerini (feed/set/template/kampanya adları, rakamlar) birebir aktar.',
+  '- Tablonun öncesine bağlamı anlatan kısa bir cümle yaz. Tablo verisini cümle içinde "|" ya da "Feed: … | Set: …" diye tek satıra SIKIŞTIRMA.',
+  '- Madde için "- ", sıralı adımlar için "1. ", alt madde için iki boşluk + "- ". Gerçekten önemli bir ifadeyi **kalın** yapabilirsin (az kullan). Çok konulu uzun metinde konu ayırmak için "### Başlık" satırı kullanabilirsin; kısa yorumda başlık kullanma.',
+].join('\n');
+var JIRA_CONTEXT_RULE_ = [
+  '- BAĞLAMI AKTAR, SADECE TALİMAT VERME: Ekip konuyu markanın gözünden anlamalı. Her iş için önce markanın tespitini/gözlemini ve gerekçesini ver, sonra isteneni yaz. Markanın verdiği somut detayları (ne kontrol etti, ne eksik/yanlış çıktı, rakamlar, oranlar, süreler: "son 2 gündür", "bütçesinin 3\'te 1\'i") kaybetmeden aktar.',
+  '- Markanın açık bıraktığı alanı da ilet: "uygun olabilecek diğer listing grupları da eklenebilir", "sizin de öneriniz olursa değerlendirelim" gibi esneklikleri ve ekipten görüş/öneri beklendiğini yaz.',
+  '- Birden fazla konu varsa her konuyu ayrı maddede, bağlamıyla birlikte yaz. Konuları birbirine karıştırma.',
+  '- ÖRNEK. Marka maili: "Pmax kampanyalarının listing gruplarını kontrol ettik, bazı kampanyalarda listing gruplarımız eksik kalmış... TR_ABC_Perfmax_RE_Ayakkabi>Kadın Ayakkbı asset grubuna topuklu ayakkabı-kadın ve spor ayakkabı kadın listing gruplarını da ekleyelim. Uygun olabilecek diğer listing grupları da ekleyebilirsiniz." ve "TR_ABC_Perfmax_RE_Ic_Giyim kampanyası son 2 gündür bütçesinin 2 katından fazlasını harcamış..."',
+  '  KÖTÜ: "- Kadın Ayakkbı asset grubuna topuklu ayakkabı-kadın listing grubunu ekleyelim." (neden eklendiği yok)',
+  '  İYİ: "- Marka Pmax kampanyalarının listing gruplarını kontrol etmiş, bazı kampanyalarda listing grupları eksik kalmış. TR_ABC_Perfmax_RE_Ayakkabi kampanyasında Kadın Ayakkbı asset grubuna topuklu ayakkabı-kadın ve spor ayakkabı kadın, Erkek Ayakkabı asset grubuna spor ayakkabı erkek listing gruplarını ekleyelim. Uygun gördüğün başka listing grupları varsa onları da ekleyebiliriz, marka önerilerimize açık."',
+  '  İYİ: "- Harcama tarafında dengesizlik var: TR_ABC_Perfmax_RE_Ic_Giyim son 2 gündür bütçesinin 2 katından fazlasını harcamış, TR_ABC_Perfmax_RE_Cocuk bütçesinin yarısından azını, TR_ABC_Perfmax_RE_Kadin_Giyim son 6 gündür bütçesinin 3\'te 1\'ini harcıyor. Harcama ve bid optimizasyonu için kontrol edebilir misin?"'
+].join('\n');
+function nowStr_() { return Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM.yyyy HH:mm') + ' (' + ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][Number(Utilities.formatDate(new Date(), 'Europe/Istanbul', 'u')) % 7] + ')'; }
+function jiraCommentLines_(list, maxLen) {
+  return list.map(function (c) { return '--- ' + c.date + ' | ' + c.author + (c.mine ? ' [SEN]' : '') + '\n' + c.text.slice(0, maxLen || 2500); }).join('\n');
+}
+/** Board: seçilen Jira işinin genel durumunu + mail thread'ini okuyup Deniz'ın ağzından yorum hazırla */
+function generateJiraComment(threadId, key, hint) {
+  var cfg = getConfig_(), me = cfg.MY_NAME || 'kullanıcı';
+  var st = jiraIssueState_(key, 25);
+  var th = apiThread_(String(threadId));
+  var lastMineTs = 0; st.comments.forEach(function (c) { if (c.mine && c.ts > lastMineTs) lastMineTs = c.ts; });
+  var afterMine = st.comments.filter(function (c) { return !c.mine && c.ts > lastMineTs; });
+  var beforeC = st.comments.filter(function (c) { return afterMine.indexOf(c) < 0; }).slice(-10);
+  var convo = [];
+  if (th && th.exists()) {
+    var facts = extractFacts_(th, cfg, null), used = 0;
+    for (var i = facts.messages.length - 1; i >= 0; i--) {
+      var m = facts.messages[i];
+      var block = '### ' + Utilities.formatDate(m.date, 'Europe/Istanbul', 'dd.MM.yyyy HH:mm') + ' | ' + (m.from.name || '') + ' <' + m.from.email + '> [' + m.role + ']\n' + m.body + '\n';
+      if (used + block.length > 20000 && convo.length) break;
+      convo.unshift(block); used += block.length;
+    }
+  }
+  var row = loadDb_().byId[String(threadId)] || {};
+  var atts = []; try { atts = getThreadAttachments(threadId); } catch (e) {}
+  var attAi = attachmentsForAi_(atts);
+  var prompt = [
+    'Sen ' + me + '\'sın. Jira\'daki ' + st.key + ' işine YORUM yazacaksın. Önce işin GENEL DURUMUNU incele: açıklamada ne istenmiş, yorumlarda ne yapılmış, en son kim ne demiş, şu an top kimde, ne eksik. Sonra mail thread\'inde bu işle ilgili YENİ olan ne var (markanın yeni talebi, değişiklik, onay, tarih, link) onu bul.',
+    'Yorum, işi bir adım ileri taşımalı: ekibin bilmediği yeni bilgiyi ver, gerekiyorsa ne yapılmasını ya da kimden ne beklediğini net söyle. Task\'te zaten yazılı olanı tekrar etme. Mailde bu işle ilgili yeni bir şey yoksa bunu "reason" alanında söyle ve yine de işin durumuna uygun kısa bir takip yorumu öner.',
+    'ŞU AN: ' + nowStr_(),
+    'ZAMAN KURALI: Her yorumun ve mailin tarihine/saatine bak. Önceliğin, ' + me + '\'ın kendi son yorumundan SONRA gelen yorumlar ve mailler. Eski, zaten konuşulmuş ya da kapanmış konuları yeniden açma; en güncel durumu esas al.',
+    row.brand ? 'Marka: ' + row.brand : '',
+    hint ? 'NOT (' + me + ' özellikle istedi, yoruma yansıt): ' + String(hint).slice(0, 500) : '',
+    '',
+    'YORUM KURALLARI:',
+    '- ' + me + '\'ın ağzından, ekibe yazıyormuş gibi. Samimi ve rahat ama cıvık değil; şaka, emoji, ünlem yok.',
+    '- Biri bir şey yapacaksa yorumu "@Ad Soyad" ile başlat (sadece aşağıdaki KİŞİLER listesindeki isimleri birebir kullan). Herkese yönelikse etiket koyma.',
+    '- Her cümle büyük harfle başlar, nokta ve virgül kullan, soru sorarken soru işareti kullan. Noktalı virgül, ünlem, üç nokta yok. İmza, "Sevgiler" yok. "Bitince buraya yaz, markaya bilgi geçerim" gibi kapanış/geri bildirim cümleleri ekleme.',
+    '- KURULUM BİLGİLERİNE DOKUNMA: Markanın gönderdiği reklam/kurulum metinlerini ve etiketlerini (Primary text, Headline, Description, LP / landing page, URL, CTA, kampanya/kitle/set adları, UTM, görsel/video adları) mailde nasıl yazıyorsa öyle aktar. Etiketleri Türkçeye çevirme ("Başlık", "Açıklama", "Ana metin" deme), metinleri yeniden yazma, kısaltma, düzeltme. Sadece kendi giriş/açıklama cümlelerini toparla.',
+    '- Uzunluk: Basit bir takip ise 1-3 cümle. Markadan yeni talep/bilgi aktarıyorsan ekibin konuyu anlaması için gereken bağlamı eksiksiz ver; kısa bir girişten sonra her konuyu "-" ile ayrı madde yaz. Linkleri, kampanya adlarını, rakamları ve tarihleri birebir koru. Bilmediğin bilgiyi uydurma, gerekiyorsa [köşeli parantez] bırak.',
+    JIRA_CONTEXT_RULE_,
+    JIRA_FORMAT_RULE_,
+    '',
+    'KİŞİLER: ' + (Object.keys(st.people).join(', ') || '—'),
+    '',
+    'JIRA İŞİ: ' + st.key + ' | ' + st.summary + ' | Durum: ' + st.status + ' | Atanan: ' + (st.assignee || 'yok') + ' | Açan: ' + st.reporter + (st.due ? ' | Bitiş: ' + st.due : ''),
+    'AÇIKLAMA:', st.description.slice(0, 5000) || '—',
+    st.statusHistory && st.statusHistory.length ? 'DURUM GEÇMİŞİ: ' + st.statusHistory.map(function (h) { return h.date + ' ' + h.author + ': ' + h.from + ' → ' + h.to; }).join(' | ') : '',
+    'ÖNCEKİ YORUMLAR (bağlam, eskiden yeniye):',
+    jiraCommentLines_(beforeC, 1500) || '—',
+    'SENİN SON YORUMUNDAN SONRA GELEN YORUMLAR (ODAK — yorum bunlara cevap olmalı):',
+    jiraCommentLines_(afterMine, 2500) || '— (senin son yorumundan sonra yeni yorum yok)',
+    '',
+    'MAIL THREAD (kronolojik):', convo.join('\n') || '—',
+    '',
+    attAi.text,
+    atts.length ? 'TASK\'TE ZATEN OLAN EKLER: ' + (st.attachments.join(', ') || 'yok') : '',
+    atts.length ? 'EKLER: Yorumla birlikte task\'e yüklenmesi GEREKEN ekleri içeriklerine bakarak seç ("attach": ["E2"]). Sadece işle ilgili YENİ ve gerekli dosyaları seç: task\'te zaten olanları, eski sürümleri, imza/logo ve bilgi amaçlı ekran görüntülerini seçme.' : '',
+    atts.length ? 'GÖRSEL GÖMME: Ekibin bir görseli GÖRMESİ gerekiyorsa (reklam önizlemesi, kampanya/panel ekran görüntüsü, kreatif) yorumda ilgili cümlenin hemen altına tek başına bir satır olarak [[E2]] yaz (E2 yerine görselin ref\'i); görsel tam orada yorumun içinde gösterilir. Gömdüğün görselleri "attach" listesine de ekle. Gömülmeyen ekler için kısaca "Dosyalar ekte." de.' : '',
+    'SADECE şu JSON\'u döndür: {"state": "işin şu anki durumu, 1-2 cümle (ne yapıldı, ne bekleniyor, top kimde)", "comment": "yorum metni", "reason": "mailde yeni bilgi yoksa kısa not, varsa boş", "attach": []}'
+  ].filter(function (x) { return x !== ''; }).join('\n');
+  var a = safeJson_(callGemini_(prompt, cfg, attAi.parts));
+  var comment = String(a.comment || '').replace(/\r/g, '').trim();
+  var refs = (a.attach || []).map(function (r) { return String(r).trim().toUpperCase(); });
+  if (!comment) throw new Error('AI yorum üretemedi');
+  return { key: st.key, url: st.url, state: String(a.state || '').trim(), comment: comment, reason: String(a.reason || '').trim(), people: st.people,
+    attachments: atts, attach: atts.filter(function (t) { return refs.indexOf(t.ref) >= 0; }).map(function (t) { return t.id; }) };
+}
+
+/** Board (Jira kartı → Markaya dön): bu Jira işinin ilgili olduğu marka maili adayları */
+function getBrandThreadCandidates(jiraThreadId) {
+  var db = loadDb_(), id = String(jiraThreadId), jr = db.byId[id];
+  if (!jr) throw new Error('Kart bulunamadı');
+  var key = (String(jr.subject || '').match(JIRA_KEY_RE_) || [])[1] || '';
+  var st = null; try { if (key) st = jiraIssueState_(key, 1); } catch (e) {}
+  var summary = st ? st.summary : String(jr.title || jr.subject || '').replace(key, '');
+  var proj = key.split('-')[0], mapped = key ? (jiraIssueThreads_()[key] || '') : '';
+  var bnames = []; try { jiraMapRows_().forEach(function (r) { if (r.key === proj) bnames = bnames.concat(r.names); }); } catch (e) {}
+  var jb = fold_(jr.brand || '').trim();
+  var STOP = { 'icin': 1, 'ile': 1, 'olan': 1, 'reklam': 1, 'kampanya': 1, 'kampanyasi': 1, 'hakkinda': 1, 'guncelleme': 1, 'talep': 1, 'and': 1, 'the': 1, 'for': 1 };
+  var toks = foldTr_(summary).split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 4 && !STOP[w]; });
+  var lim = Date.now() - 60 * 86400000;
+  var list = db.rows.filter(function (r) {
+    if (String(r.threadId) === id) return false;
+    var fl = String(r.flags || '');
+    if (/(^|,)(JIRA|CALENDAR|CAL_RESPONSE|MEETING_NOTES)(,|$)/.test(fl) || ['IGNORED', 'AUTO'].indexOf(r.status) >= 0) return false;
+    return String(r.threadId) === mapped || new Date(r.lastDate).getTime() >= lim;
+  }).map(function (r) {
+    var sc = 0, rb = fold_(r.brand || '').trim();
+    if (String(r.threadId) === mapped) sc += 100;
+    if (rb && ((jb && rb === jb) || bnames.indexOf(rb) >= 0 || bnames.some(function (n) { return n.length >= 3 && rb.indexOf(n) >= 0; }))) sc += 20;
+    var hay = foldTr_((r.subject || '') + ' ' + (r.title || ''));
+    toks.forEach(function (w) { if (hay.indexOf(w) >= 0) sc += 5; });
+    if (isTrue_(r.closed)) sc -= 3;
+    return { id: r.threadId, subject: r.subject, title: r.title, brand: r.brand, lastDate: r.lastDate, closed: isTrue_(r.closed), score: sc, mapped: String(r.threadId) === mapped };
+  }).filter(function (x) { return x.score >= 5; });
+  list.sort(function (a, b) { return b.score - a.score || new Date(b.lastDate) - new Date(a.lastDate); });
+  list = list.slice(0, 8);
+  return { key: key, summary: summary, status: st ? st.status : '', list: list, pick: list.length && list[0].score >= 20 ? list[0].id : '' };
+}
+/** Board (Markaya dön): Jira'daki son durumu okuyup seçilen marka mailine cevap taslağı hazırla. Mail GÖNDERİLMEZ; marka kartında normal onaylı gönderimle gider. */
+/** Task'in hangi ekibe ait olduğu (etiket ya da başlıktan) */
+function jiraTeamOf_(summary, labels) {
+  var l = (labels || []).join(' '), s = String(summary || '');
+  if (/Sosyal_Medya/i.test(l) || /\b(SM|Meta|TikTok|Sosyal)\b/i.test(s)) return 'SM';
+  if (/Google_Ads/i.test(l) || /\b(Google|Pmax|YouTube|DV360)\b/i.test(s)) return 'Google';
+  return '';
+}
+/**
+ * Board (Jira kartı → Maile cevap): aynı marka cevabında birleştirilebilecek diğer ekip task'leri.
+ *  auto=true: bu marka mailine zaten bağlı task'ler (task bu mailden açıldı / buradan yorum yazıldı / buraya cevap verildi)
+ *  öneri: aynı projede, başlığı benzer (ekip adı hariç) ve son 45 günde güncellenmiş task'ler; karşı ekipse öne çıkar
+ */
+function getSiblingTasks(jiraThreadId, brandThreadId) {
+  var db = loadDb_(), jr = db.byId[String(jiraThreadId)];
+  var key = (String(jr && jr.subject || '').match(JIRA_KEY_RE_) || [])[1] || '';
+  var out = [], seen = {}; seen[key] = 1;
+  var map = jiraIssueThreads_();
+  Object.keys(map).forEach(function (k) { if (String(map[k]) === String(brandThreadId) && !seen[k]) { seen[k] = 1; out.push({ key: k, s: '', team: '', why: 'aynı marka mailine bağlı', auto: true, sc: 100 }); } });
+  if (key && jiraCreds_()) {
+    var me = null; try { me = jiraFetch_('get', '/rest/api/3/issue/' + key + '?fields=summary,labels,project', null, true); } catch (e) {}
+    var f = (me && !me._err && me.fields) || {}, myTeam = jiraTeamOf_(f.summary, f.labels), proj = key.split('-')[0];
+    var norm = function (t) { return foldTr_(String(t || '')).replace(/\b(sm|google|meta|tiktok|sosyal medya|ads|orn|ornek moda)\b/g, ' ').split(/[^a-z0-9]+/).filter(function (w) { return w.length >= 3 && !/^(ekim|kasim|aralik|ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|2026|2027|kampanya|kampanyasi|kampanyalari)$/.test(w); }); };
+    var mine = norm(f.summary);
+    var list = []; try { list = jiraSearch_('project = ' + proj + ' AND updated >= -45d AND key != ' + key + ' ORDER BY updated DESC', ['summary', 'labels'], 40); } catch (e) {}
+    list.forEach(function (i, idx) {
+      var fs = i.fields || {}, t = jiraTeamOf_(fs.summary, fs.labels), words = norm(fs.summary);
+      var common = mine.filter(function (w) { return words.indexOf(w) >= 0; });
+      var sc = common.length * 10 + (myTeam && t && t !== myTeam ? 8 : 0) - idx * 0.1;
+      if (seen[i.key]) { out.forEach(function (o) { if (o.key === i.key) { o.s = fs.summary || ''; o.team = t; } }); return; }
+      if (common.length) out.push({ key: i.key, s: fs.summary || '', team: t, why: 'benzer başlık: ' + common.slice(0, 3).join(', '), sc: sc });
+    });
+  }
+  out.sort(function (a, b) { return b.sc - a.sc; });
+  return { key: key, list: out.slice(0, 6) };
+}
+/** Bir task'in marka cevabı için bağlamı: çapa tarihinden SONRA olanlar odak, öncesi kısa bağlam */
+function brandTaskInfo_(key, anchorTs, fmt) {
+  var st = jiraIssueState_(key, 30), team = jiraTeamOf_(st.summary, st.labels);
+  var newC = st.comments.filter(function (c) { return c.ts > anchorTs; });
+  var oldC = st.comments.filter(function (c) { return c.ts <= anchorTs; }).slice(-3);
+  var newS = (st.statusHistory || []).filter(function (h) { return h.ts > anchorTs; });
+  return [
+    '##### ' + (team ? team + ' EKİBİ — ' : '') + 'Jira işi ' + st.key + ': ' + st.summary + ' | Şu anki durum: ' + st.status + (st.due ? ' | Bitiş: ' + st.due : ''),
+    '=== ' + (anchorTs ? fmt(anchorTs) + ' SONRASINDA' : 'SON') + ' BU TASK\'TE OLANLAR (cevabın konusu, en sondaki en güncel) ===',
+    newS.length ? 'Durum değişiklikleri: ' + newS.map(function (h) { return h.date + ' ' + h.from + ' → ' + h.to; }).join(' | ') : '',
+    jiraCommentLines_(newC, 2500) || '— Bu tarihten sonra bu task\'te yeni yorum yok.',
+    '=== DAHA ESKİ YORUMLAR (sadece bağlam; cevaba KOYMA) ===',
+    jiraCommentLines_(oldC, 400) || '—'
+  ].filter(function (x) { return x !== ''; }).join('\n');
+}
+/** Board (mail kartı → Cevap): bu mailin ilgili Jira task'leri (ekip başına öneri + son task'ler) */
+function getReplyJiraTasks(threadId) {
+  var x = getJiraContext(threadId);
+  if (!x || !x.connected) return { connected: false };
+  return { connected: true, suggest: x.suggest || {}, targets: (x.targets || []).slice(0, 40) };
+}
+/** Board (mail kartı → Cevap): seçilen Jira task'lerinin bu thread'deki son mesajımdan SONRAKİ gelişmelerini okuyup markaya cevap yaz */
+function prepareReplyFromJira(threadId, hint, keys) {
+  keys = (keys || []).map(function (k) { return String(k || '').toUpperCase().trim(); }).filter(function (k) { return JIRA_KEY_RE_.test(k); });
+  if (!keys.length) return { reply: generateAiReply(threadId, hint, null), keys: [], failed: [] };
+  return prepareBrandUpdate(null, threadId, hint, keys);
+}
+function prepareBrandUpdate(jiraThreadId, brandThreadId, hint, extraKeys) {
+  var cfg = getConfig_();
+  var db = loadDb_(), jr = db.byId[String(jiraThreadId)], br = db.byId[String(brandThreadId)];
+  if (!br) throw new Error('Marka maili bulunamadı');
+  var key = (String(jr && jr.subject || '').match(JIRA_KEY_RE_) || [])[1] || '';
+  var keys = [key].concat((extraKeys || []).map(function (k) { return String(k || '').toUpperCase().trim(); })).filter(function (k, i, a) { return k && JIRA_KEY_RE_.test(k) && a.indexOf(k) === i; });
+  // Marka thread'inde benim son mesajım (yoksa markanın son mesajı) = çapa. Jira'da bu andan SONRA olanlar cevabın konusu.
+  var anchorTs = 0, anchorTxt = '', anchorWho = '';
+  try {
+    var bf = extractFacts_(apiThread_(String(brandThreadId)), cfg, null);
+    for (var i = bf.messages.length - 1; i >= 0; i--) { var m = bf.messages[i]; if (m.role === 'ME') { anchorTs = m.date.getTime(); anchorTxt = m.body; anchorWho = 'sen'; break; } }
+    if (!anchorTs && bf.messages.length) { var lm = bf.messages[bf.messages.length - 1]; anchorTs = lm.date.getTime(); anchorTxt = lm.body; anchorWho = lm.from.name || lm.from.email; }
+  } catch (e) {}
+  var fmt = function (ts) { return Utilities.formatDate(new Date(ts), 'Europe/Istanbul', 'dd.MM.yyyy HH:mm'); };
+  var parts = [], failed = [];
+  keys.forEach(function (k) { try { parts.push(brandTaskInfo_(k, anchorTs, fmt)); } catch (e) { failed.push(k); } });
+  if (!parts.length) {
+    try { var ms = apiThread_(String(jiraThreadId)).getMessages(); parts.push('Son Jira bildirimi (' + fmt(ms[ms.length - 1].getDate().getTime()) + '):\n' + String(ms[ms.length - 1].getPlainBody() || '').slice(0, 3000)); } catch (e2) {}
+  }
+  if (!parts.length) throw new Error('Jira güncellemesi okunamadı');
+  var info = [
+    anchorTs ? 'Markaya bu thread\'de en son ' + fmt(anchorTs) + ' tarihinde ' + (anchorWho === 'sen' ? 'SEN yazdın' : anchorWho + ' yazdı') + ': "' + String(anchorTxt).replace(/\s+/g, ' ').slice(0, 400) + '"' : '',
+    ''
+  ].concat(parts.map(function (x) { return x + '\n'; })).filter(String).join('\n');
+  var multi = parts.length > 1;
+  var hint2 = [
+    'Bu mail, markaya iç ekiplerin Jira\'daki EN GÜNCEL ilerlemesini bildirmek için. Sadece "SONRASINDA ... OLANLAR" bölümlerindeki gelişmeleri aktar: ekip ne yaptı (ör. LP güncellendi, ad set eklendi), neyi neden yapmadı (ör. o kampanyada LP alanı yok), markadan bir şey gerekiyorsa onu sor.',
+    multi ? 'BİRDEN FAZLA EKİP TASK\'İ VAR (ör. SM ve Google): hepsinin gelişmelerini TEK bir mailde birleştir. Platform/kanal bazında (Meta tarafında…, Google tarafında…) ya da konu bazında düzenli aktar; aynı bilgiyi iki kez yazma. Bir task\'te yeni gelişme yoksa o kanal için uydurma; gerekiyorsa "devam ediyor" de ya da hiç bahsetme.' : '',
+    'Markanın bu thread\'deki talebini ve senin verdiğin sözü ("güncelliyoruz" vb.) dikkate al: cevap o talebin/sözün sonucunu bildirsin. Eski yorumlardaki konuları markaya anlatma.',
+    'Jira\'yı, task numaralarını, iç ekip isimlerini ve iç tartışmayı markaya anlatma. Kampanya adlarını, linkleri ve tarihleri birebir koru. Kısa ve net tut.',
+    hint ? 'Ayrıca şunu söyle: ' + String(hint).slice(0, 500) : '',
+    '', info.slice(0, multi ? 9000 : 6000)
+  ].filter(String).join('\n');
+  var reply = generateAiReply(brandThreadId, hint2, null);
+  keys.forEach(function (k) { if (failed.indexOf(k) < 0) jiraIssueThreadSet_(k, brandThreadId); });
+  return { reply: reply, key: key, keys: keys, failed: failed, card: toCard_(loadDb_().byId[String(brandThreadId)]) };
+}
+
+/** Board (Jira kartı → 📨 Yeni mail): alıcı önerisi (ilgili marka mailinden) + birleştirilebilecek diğer ekip task'leri */
+function getNewMailContext(jiraThreadId) {
+  var cfg = getConfig_(), out = { to: [], cc: [], options: [], from: '', siblings: [] };
+  var cand = null; try { cand = getBrandThreadCandidates(jiraThreadId); } catch (e) {}
+  var pick = cand && (cand.pick || (cand.list[0] && cand.list[0].id));
+  if (pick) {
+    try {
+      var rc = getReplyRecipients(pick), row = loadDb_().byId[String(pick)] || {};
+      out.options = rc.options || [];
+      var ext = out.options.filter(function (o) { return o.role === 'EXTERNAL'; }).map(function (o) { return o.email; });
+      var cmE = out.options.filter(function (o) { return o.role === 'CM'; }).map(function (o) { return o.email; });
+      out.to = ext.length ? ext.slice(0, 4) : (rc.to || []);
+      out.cc = cmE.filter(function (e) { return out.to.indexOf(e) < 0; });
+      out.from = row.title || row.subject || '';
+    } catch (e) {}
+  }
+  try { out.siblings = getSiblingTasks(jiraThreadId, pick || '').list || []; } catch (e) {}
+  return out;
+}
+/** Board (📨 Yeni mail): Jira task(lar)ından markaya YENİ bir mail (konu + metin) yazar. Gönderilmez. */
+function prepareNewMail(jiraThreadId, hint, extraKeys, to, cc) {
+  var cfg = getConfig_(), db = loadDb_(), jr = db.byId[String(jiraThreadId)] || {};
+  var key = (String(jr.subject || '').match(JIRA_KEY_RE_) || [])[1] || '';
+  var keys = [key].concat((extraKeys || []).map(function (k) { return String(k || '').toUpperCase().trim(); })).filter(function (k, i, a) { return k && JIRA_KEY_RE_.test(k) && a.indexOf(k) === i; });
+  var parts = [];
+  keys.forEach(function (k) {
+    try {
+      var st = jiraIssueState_(k, 8), team = jiraTeamOf_(st.summary, st.labels);
+      parts.push(['##### ' + (team ? team + ' EKİBİ — ' : '') + 'Jira işi ' + st.key + ': ' + st.summary + ' | Durum: ' + st.status + (st.due ? ' | Bitiş: ' + st.due : ''),
+        'Açıklama (kısaltılmış):', (st.description || '—').slice(0, 1500),
+        'Son yorumlar (eskiden yeniye, en sondaki en güncel):', jiraCommentLines_(st.comments, 1500) || '—'].join('\n'));
+    } catch (e) {}
+  });
+  if (!parts.length) throw new Error('Jira task\'leri okunamadı (Jira bağlı mı?)');
+  var rcp = [].concat(to || [], cc || []).map(function (e) { return e + ' [' + roleOf_(lc_(e), cfg) + ']'; }).join(', ');
+  var prompt = [
+    'Sen ' + (cfg.MY_NAME || 'kullanıcı') + '\'sın. Markaya YENİ bir mail (yeni konu, cevap değil) yazacaksın. Kaynak, ajans içi ekiplerin aşağıdaki Jira task(lar)ı.',
+    'ŞU AN: ' + nowStr_(),
+    'ALICILAR: ' + (rcp || '—'),
+    hint ? 'KULLANICININ NOTU (mail bunu söylemeli): ' + String(hint).slice(0, 800) : '',
+    'KURALLAR:',
+    '- Markayı ilgilendiren en güncel gelişmeyi ya da markadan istenen şeyi net aktar (yorumların tarihine bak, en günceli esas al). Eski, kapanmış konuları anlatma.',
+    '- Jira\'dan, task numaralarından, iç ekip isimlerinden ve iç tartışmadan bahsetme. Kampanya adlarını, linkleri ve tarihleri birebir koru.',
+    keys.length > 1 ? '- Birden fazla ekip task\'i var: hepsini tek mailde, kanal ya da konu bazında düzenli birleştir; aynı bilgiyi iki kez yazma, yeni gelişmesi olmayan için bilgi uydurma.' : '',
+    '- Konu satırı yazı avatarındaki "Konu satırı (yeni thread)" kuralına uysun (ör. "<Marka> x BIZ - <Konu>"); iç Jira başlık formatını kullanma.',
+    '- Bilmediğin bilgi için [köşeli parantez] bırak.',
+    '',
+    '--- YAZI AVATARI ---', (typeof WRITING_STYLE_ === 'string' ? WRITING_STYLE_ : ''), '--- YAZI AVATARI SONU ---',
+    '',
+    parts.join('\n\n'),
+    '',
+    'SADECE şu JSON\'u döndür: {"subject": "konu satırı", "body": "gönderilmeye hazır mail gövdesi (imzasız)"}'
+  ].filter(String).join('\n');
+  var a = safeJson_(callGemini_(prompt, cfg));
+  var body = cleanReply_({ reply: a.body || '' });
+  if (!body) throw new Error('AI boş mail döndürdü');
+  return { subject: String(a.subject || '').replace(/\s+/g, ' ').trim(), body: body, keys: keys };
+}
+function buildNewMimeHtml_(from, toList, ccList, subject, text, html) {
+  var enc = function (x) { return '=?UTF-8?B?' + Utilities.base64Encode(Utilities.newBlob(x).getBytes()) + '?='; };
+  var b = 'mb_' + Utilities.getUuid().replace(/-/g, '');
+  var lines = ['From: ' + from, 'To: ' + toList.join(', ')];
+  if (ccList.length) lines.push('Cc: ' + ccList.join(', '));
+  lines.push('Subject: ' + enc(subject), 'MIME-Version: 1.0', 'Content-Type: multipart/alternative; boundary="' + b + '"');
+  var part = function (type, body) { return '--' + b + '\r\nContent-Type: ' + type + '; charset="UTF-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n' + Utilities.base64Encode(Utilities.newBlob(body).getBytes()) + '\r\n'; };
+  var mime = lines.join('\r\n') + '\r\n\r\n' + part('text/plain', text) + part('text/html', html) + '--' + b + '--';
+  return Utilities.base64EncodeWebSafe(Utilities.newBlob(mime).getBytes());
+}
+/** Board (📨 Yeni mail): yeni konu olarak gönder (mode='send') ya da Gmail'de taslak oluştur (mode='draft'). Gönderilen thread Jira task(lar)ına bağlanır. */
+function sendNewMail(jiraThreadId, to, cc, subject, body, extraKeys, mode) {
+  var cfg = getConfig_();
+  var ok = function (e) { return /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(e); };
+  to = (to || []).map(function (e) { return lc_(String(e).trim()); }).filter(ok);
+  cc = (cc || []).map(function (e) { return lc_(String(e).trim()); }).filter(function (e) { return ok(e) && to.indexOf(e) < 0; });
+  if (!to.length) throw new Error('En az bir "Kime" alıcısı seç');
+  subject = String(subject || '').replace(/\s+/g, ' ').trim(); if (!subject) throw new Error('Konu boş');
+  var text = String(body || '').replace(/\s+$/, ''); if (!text) throw new Error('Mesaj boş');
+  var sig = getSignature_(cfg);
+  var html = '<div dir="ltr">' + escHtml_(text).replace(/\n/g, '<br>') + '</div>' +
+             (sig.html ? '<div class="gmail_signature" data-smartmail="gmail_signature">' + tightSig_(sig.html) + '</div>' : '');
+  var raw = buildNewMimeHtml_(mailbox_(cfg.MY_NAME, cfg.myEmail), to, cc, subject, text + (sig.text ? '\n' + sig.text : ''), html);
+  if (mode !== 'send') { Gmail.Users.Drafts.create({ message: { raw: raw } }, 'me'); return { mode: 'draft' }; }
+  var r = Gmail.Users.Messages.send({ raw: raw }, 'me');
+  var jr = loadDb_().byId[String(jiraThreadId)] || {};
+  var key = (String(jr.subject || '').match(JIRA_KEY_RE_) || [])[1] || '';
+  [key].concat(extraKeys || []).forEach(function (k) { k = String(k || '').toUpperCase(); if (k && JIRA_KEY_RE_.test(k) && r.threadId) jiraIssueThreadSet_(k, r.threadId); });
+  log_('INFO', 'Yeni mail gönderildi (Jira ' + key + '): "' + subject + '" → ' + to.concat(cc).join(', ') + ' [' + r.threadId + ']');
+  return { mode: 'send', threadId: r.threadId, link: gmailLink_(r.threadId, cfg) };
+}
+
 function cleanReply_(a) {
   var t = String(a && (a.reply || a.suggested_reply) || '').replace(/\r/g, '').trim();
   return t.replace(/^(işte|here is)[^\n]*:\s*\n+/i, '').trim();
 }
 /** Board: "AI ile cevap yaz" — her kart için (hint: isteğe bağlı kısa not) */
-function generateAiReply(threadId, hint) {
+function generateAiReply(threadId, hint, rcpt) {
   var cfg = getConfig_();
   var th = apiThread_(String(threadId));
   if (!th || !th.exists()) throw new Error('Thread bulunamadı');
   var db0 = loadDb_(), row0 = db0.byId[String(threadId)];
   var facts = extractFacts_(th, cfg, null);                       // thread'in tamamı
+  if (rcpt && (rcpt.to || rcpt.cc)) facts.rcptOverride = [].concat(rcpt.to || [], rcpt.cc || []).map(lc_);
   var reply = cleanReply_(safeJson_(callGemini_(buildReplyPrompt_(facts, cfg, row0 && row0.memory, hint), cfg)));
   if (!reply) throw new Error('AI boş cevap döndürdü');
   var lock = LockService.getUserLock(); lock.waitLock(15000);
@@ -2040,13 +3676,13 @@ function buildDigitalTwin() {
 
 function fmtAddr_(a) { return (a.name ? a.name + ' ' : '') + '<' + a.email + '>'; }
 
-function callGemini_(prompt, cfg) {
+function callGemini_(prompt, cfg, extraParts) {
   var key = PropertiesService.getScriptProperties().getProperty('GEMINI_API_KEY');
   if (!key) throw new Error('GEMINI_API_KEY tanımlı değil (menü > Gemini API key gir).');
-  var models = uniq_([cfg.GEMINI_MODEL, cfg.FALLBACK_MODEL].filter(String));
+  var models = geminiModels_(cfg, key);
   var payload = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.2 }
+    contents: [{ role: 'user', parts: [{ text: prompt }].concat(extraParts || []) }],
+    generationConfig: { responseMimeType: 'application/json' }
   };
   var lastErr = '';
   for (var mi = 0; mi < models.length; mi++) {
@@ -2065,11 +3701,50 @@ function callGemini_(prompt, cfg) {
         return parts.map(function (p) { return p.text || ''; }).join('');
       }
       lastErr = models[mi] + ' → HTTP ' + code + ': ' + res.getContentText().slice(0, 300);
-      if (code === 429 || code >= 500) { Utilities.sleep(1500 * (attempt + 1)); continue; }
+      if (code === 404 || code === 400 && /not found|not supported/i.test(res.getContentText())) { markBadModel_(models[mi]); break; }   // model kalkmış → sıradaki
+      // Görsel/ek kaynaklı 400 (desteklenmeyen tür, bozuk görsel, boyut) → görseller olmadan tekrar dene
+      if (code === 400 && extraParts && extraParts.length) {
+        try { log_('WARN', 'Gemini görselleri kabul etmedi, görselsiz tekrar deneniyor: ' + lastErr); } catch (e) {}
+        extraParts = null; payload.contents[0].parts = [{ text: prompt }]; attempt--; continue;
+      }
+      if (code === 429) { if (attempt >= 1) break; Utilities.sleep(2000); continue; }   // ücretsiz kota modele özel → hızla diğer modele geç
+      if (code >= 500) { Utilities.sleep(1500 * (attempt + 1)); continue; }
       break;
     }
   }
+  try { log_('ERROR', 'Gemini hatası: ' + lastErr); } catch (e) {}
   throw new Error('Gemini hatası: ' + lastErr);
+}
+
+/** Denenecek modeller: ayarlardakiler → hesabında açık diğer Flash modelleri (günlük önbellek). Kalkmış modeller atlanır. */
+function geminiModels_(cfg, key) {
+  var sp = PropertiesService.getScriptProperties();
+  var bad = {}; try { bad = JSON.parse(sp.getProperty('AI_BAD_MODELS') || '{}'); } catch (e) {}
+  var list = [cfg.GEMINI_MODEL].concat(String(cfg.FALLBACK_MODEL || '').split(',')).map(function (x) { return String(x || '').trim(); }).filter(String);
+  var disc = [];
+  try {
+    var c = JSON.parse(sp.getProperty('AI_MODEL_LIST') || 'null');
+    if (!c || Date.now() - c.at > 86400000) {
+      var r = UrlFetchApp.fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=100', { headers: { 'x-goog-api-key': key }, muteHttpExceptions: true });
+      var names = [];
+      if (r.getResponseCode() === 200) (JSON.parse(r.getContentText()).models || []).forEach(function (m) {
+        var n = String(m.name || '').replace(/^models\//, '');
+        if ((m.supportedGenerationMethods || []).indexOf('generateContent') >= 0 && /flash/i.test(n) && !/(image|tts|audio|live|embedding|thinking-exp)/i.test(n)) names.push(n);
+      });
+      // yeni sürüm önce; "-lite" en sona (ucuz ama zayıf), preview/exp sona
+      names.sort(function (a, b) { var s = function (x) { return (/lite/.test(x) ? 2 : 0) + (/(preview|exp)/.test(x) ? 1 : 0); }; return s(a) - s(b) || (b > a ? 1 : -1); });
+      c = { at: Date.now(), names: names.slice(0, 6) };
+      sp.setProperty('AI_MODEL_LIST', JSON.stringify(c));
+    }
+    disc = c.names || [];
+  } catch (e) {}
+  return uniq_(list.concat(disc)).filter(function (m) { return !bad[m] || Date.now() - bad[m] > 7 * 86400000; });
+}
+function markBadModel_(m) {
+  var sp = PropertiesService.getScriptProperties(), bad = {};
+  try { bad = JSON.parse(sp.getProperty('AI_BAD_MODELS') || '{}'); } catch (e) {}
+  bad[m] = Date.now(); sp.setProperty('AI_BAD_MODELS', JSON.stringify(bad));
+  log_('WARN', 'Gemini modeli kullanılamıyor, atlanıyor: ' + m);
 }
 
 /** Birden fazla prompt'u paralel gönderir; başarısız olanları tek tek yeniden dener */
@@ -2078,9 +3753,9 @@ function geminiBatch_(prompts, cfg) {
   if (!key) throw new Error('GEMINI_API_KEY tanımlı değil (menü > Gemini API key gir).');
   var reqs = prompts.map(function (p) {
     return {
-      url: 'https://generativelanguage.googleapis.com/v1beta/models/' + cfg.GEMINI_MODEL + ':generateContent',
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/' + (geminiModels_(cfg, key)[0] || cfg.GEMINI_MODEL) + ':generateContent',
       method: 'post', contentType: 'application/json', headers: { 'x-goog-api-key': key }, muteHttpExceptions: true,
-      payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: p }] }], generationConfig: { responseMimeType: 'application/json', temperature: 0.2 } })
+      payload: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: p }] }], generationConfig: { responseMimeType: 'application/json' } })
     };
   });
   var res = [];
@@ -2092,6 +3767,17 @@ function geminiBatch_(prompts, cfg) {
     if (!fatal && (c === 402 || c === 401 || c === 403)) fatal = c + ': ' + r.getContentText().slice(0, 400);
   });
   if (fatal) { setAiError_(fatal); return prompts.map(function () { return null; }); }
+  // Ücretsiz katman: çok sayıda 429 → bu turu zorlamadan bırak, kartlar "AI bekliyor" kalır ve sonra yeniden denenir
+  var n429 = res.filter(function (r) { return r && r.getResponseCode() === 429; }).length;
+  if (n429 && n429 >= Math.ceil(prompts.length / 2)) {
+    var okIdx = res.map(function (r) { return r && r.getResponseCode() === 200; });
+    PropertiesService.getScriptProperties().setProperty('AI_THROTTLE_UNTIL', String(Date.now() + 24 * 3600000));   // 1 gün küçük partiler
+    if (!okIdx.some(Boolean)) {
+      // tek bir isteği diğer modellerle dene; o da olmazsa 10 dk soğuma
+      try { var first = safeJson_(callGemini_(prompts[0], cfg)); PropertiesService.getScriptProperties().setProperty('AI_LAST_OK', new Date().toISOString()); return [first].concat(prompts.slice(1).map(function () { return null; })); }
+      catch (e) { PropertiesService.getScriptProperties().setProperty('AI_COOLDOWN_UNTIL', String(Date.now() + 10 * 60000)); setAiError_('429: Gemini kotası doldu (ücretsiz katman olabilir). 10 dk sonra yeniden denenecek.'); return prompts.map(function () { return null; }); }
+    }
+  }
   var anyOk = false, lastErr = '';
   var out = prompts.map(function (p, i) {
     var r = res[i];
@@ -2137,6 +3823,7 @@ function aiWarning_() {
   return (!ok || Date.now() - new Date(ok).getTime() > 20 * 60000) ? e : null;
 }
 function aiBlocked_() {
+  if (Number(PropertiesService.getScriptProperties().getProperty('AI_COOLDOWN_UNTIL') || 0) > Date.now()) return true;   // 429 soğuma
   var e = aiError_();
   return !!(e && /^40[123]/.test(e.msg) && Date.now() - new Date(e.at).getTime() < 30 * 60000);
 }
@@ -2193,6 +3880,18 @@ function loadDb_() {
   return { sheet: sh, rows: rows, byId: byId, dirty: false, fullRewrite: !headerOk };
 }
 
+/** Kartın durumu ya da önceliği değiştiyse Log'a kaydet: sonradan "bu mail ne zaman, neden bu sütuna düştü" incelenebilsin */
+function statusLog_(prev, row, src) {
+  try {
+    if (!row) return;
+    var ps = prev ? prev.status : '', pp = prev ? Number(prev.priority) : 0;
+    if (prev && ps === row.status && pp === Number(row.priority) && String(prev.lastMsgId || '') === String(row.lastMsgId || '')) return;
+    var lag = row.lastDate ? Math.round((Date.now() - new Date(row.lastDate).getTime()) / 60000) : '';
+    log_('INFO', 'Durum' + (src ? ' (' + src + ')' : '') + ': ' + String(row.title || row.subject || '').slice(0, 70) + ' → ' + row.status + ' P' + row.priority +
+      (prev ? ' (önce ' + (ps || '?') + ' P' + (pp || '?') + ')' : ' (yeni kart)') + ' · ' + String(row.priorityReason || '').slice(0, 120) +
+      ' · son mesaj: ' + (row.lastSender || '?') + (lag !== '' ? ', ' + lag + ' dk önce' : '') + ' [' + row.threadId + ']');
+  } catch (e) {}
+}
 function saveRow_(db, row) {
   var prev = db.byId[row.threadId];
   if (prev && prev !== row) { row._r = prev._r; db.rows[db.rows.indexOf(prev)] = row; }
@@ -2296,10 +3995,10 @@ function sortLogOnce_(sh) {
 // ============================================================
 //  WEB APP (Board)
 // ============================================================
-function boardPage_() {
+function boardPage_() {   // doGet Setup.gs içinde: kurulum bittiyse Board açılır
   return HtmlService.createHtmlOutputFromFile('Board')
     .setTitle('Mail Board')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
 }
 
@@ -2384,14 +4083,20 @@ function getBoardData() {
     cards: cards,
     cms: cfg.cms.map(function (c) { return { name: c.name, email: c.email }; }),
     statuses: STATUSES.filter(function (s) { return cfg.hiddenCols.indexOf(s) < 0; }).map(function (s) {
-      return { id: s, name: cfg.colNames[s] || String(STATUS_NAMES[s]).replace(/\bCM\b/g, cfg.teamShort) };
+      var nm = cfg.colNames[s] || String(STATUS_NAMES[s]).replace(/\bCM\b/g, cfg.teamShort);
+      if (!cfg.colNames[s] && s === 'STALE') nm = nm.replace(/^3\+/, cfg.staleDays + '+');
+      if (!cfg.colNames[s] && s === 'CLIENT_STALE') nm = nm.replace(/5\+/, (cfg.clientStaleDays || 5) + '+');
+      return { id: s, name: nm };
     }),
+    filterBy: cfg.filterBy,
+    brands: cfg.brandMap.map(function (b) { return b.name; }),
     teamShort: cfg.teamShort,
     priorities: [1, 2, 3, 4, 5].map(function (p) { return { id: p, name: PRIORITY_NAMES[p] }; }),
     slaHours: cfg.slaHours,
     staleDays: cfg.staleDays,
     reminderText: cfg.reminderText,
     lastSync: PropertiesService.getScriptProperties().getProperty('LAST_SYNC') || '',
+    appUrl: (function () { try { return ScriptApp.getService().getUrl() || ''; } catch (e) { return ''; } })(),
     columnOrder: getColumnOrder_(),
     signatureText: (function () { try { return getSignature_(cfg).text; } catch (e) { return ''; } })(),
     aiError: aiWarning_(),
@@ -2399,7 +4104,8 @@ function getBoardData() {
     me: cfg.myEmail,
     todos: (function () { try { return readTodos_(); } catch (e) { return []; } })(),
     seen: (function () { try { return boardSeen_(db, cards); } catch (e) { return null; } })(),
-    serverTime: new Date().toISOString()
+    serverTime: new Date().toISOString(),
+    planned: (function () { try { return planBoard_(); } catch (e) { return {}; } })()
   };
 }
 
@@ -2545,7 +4251,7 @@ function moveOne_(db, cfg, threadId, newStatus) {
     row.updatedAt = new Date().toISOString();
     try {
       applyBoardLabels_(th, row, cfg);
-      if (wasClosed && newStatus !== 'WATCH') th.markUnread();   // Yakın Takip okunmuş olsa da açık kalır, maili okunmadı yapmaya gerek yok
+      if (wasClosed && !isSticky_(newStatus)) th.markUnread();   // Yakın Takip okunmuş olsa da açık kalır, maili okunmadı yapmaya gerek yok
     } catch (e) { if (!gone(e)) throw e; }
   }
   saveRow_(db, row);
@@ -2587,7 +4293,7 @@ function updateCard(threadId, changes) {
     if (!row) throw new Error('Kart bulunamadı');
     if (changes.priority) {
       row.priority = Math.max(1, Math.min(5, parseInt(changes.priority, 10)));
-      if (!isTrue_(row.closed) && row.status !== 'JIRA') {
+      if (!isTrue_(row.closed) && !isJiraStatus_(row.status)) {
         if (row.priority === 4) row.status = 'INTERNAL';
         else if (row.priority === 5) row.status = 'AUTO';
         else if (row.status === 'INTERNAL' || row.status === 'AUTO') row.status = 'FYI';
@@ -2651,7 +4357,8 @@ function getThreadDetail(threadId) {
       images: images
     };
   });
-  return { messages: msgs };
+  var subj = ''; try { subj = list.length ? list[list.length - 1].getSubject() : ''; } catch (e) {}
+  return { messages: msgs, subject: subj };
 }
 
 /** Mesaj gövdesini (html / düz metin) ve görsel parçalarını ayırır; ağ isteği yapmaz */
@@ -2720,6 +4427,214 @@ function escHtml_(s) {
 }
 
 /** Önerilen cevabı Gmail'de "Tümünü yanıtla" taslağı olarak oluşturur */
+// ------------------------------------------------------------
+//  Kendi cevabın: alıcıları seç (Kime/Cc), taslak oluştur ya da gönder
+// ------------------------------------------------------------
+/** Varsayılan "tümünü yanıtla" alıcıları + thread'deki herkes (seçenek olarak) */
+function getReplyRecipients(threadId) {
+  var cfg = getConfig_();
+  var th = GmailApp.getThreadById(String(threadId));
+  if (!th) throw new Error('Thread bulunamadı');
+  var msgs = th.getMessages().filter(function (m) { return !m.isDraft(); });
+  var last = msgs[msgs.length - 1];
+  var P = function (s) { return parseAddresses_(s || ''); };
+  var opts = {}, order = [];
+  var add = function (a) { var e = lc_(a.email || ''); if (!e || e === cfg.myEmail) return; if (!opts[e]) { opts[e] = { email: e, name: a.name || '', role: roleOf_(e, cfg) }; order.push(e); } else if (!opts[e].name && a.name) opts[e].name = a.name; };
+  msgs.forEach(function (m) { P(m.getFrom()).concat(P(m.getTo()), P(m.getCc())).forEach(add); });
+  var from = P(last.getFrom())[0] || {}, lastTo = P(last.getTo()), lastCc = P(last.getCc());
+  var to, cc;
+  if (lc_(from.email || '') === cfg.myEmail) { to = lastTo; cc = lastCc; }          // son mesaj benimse aynı kişilere
+  else { to = [from]; cc = lastTo.concat(lastCc); }
+  var clean = function (arr, not) { var seen = {}; return arr.map(function (a) { return lc_(a.email || ''); }).filter(function (e) { if (!e || e === cfg.myEmail || seen[e] || (not && not.indexOf(e) >= 0)) return false; seen[e] = 1; return true; }); };
+  to = clean(to); cc = clean(cc, to);
+  return { to: to, cc: cc, options: order.map(function (e) { return opts[e]; }) };
+}
+function buildReplyMimeHtml_(from, toList, ccList, lastMsg, text, html) {
+  var subj = lastMsg.getSubject() || '';
+  if (!/^(re|ynt|yanıt|cevap)\s*:/i.test(subj)) subj = 'Re: ' + subj;
+  var msgId = lastMsg.getHeader('Message-ID') || lastMsg.getHeader('Message-Id') || '';
+  var refs = lastMsg.getHeader('References') || '';
+  var enc = function (x) { return '=?UTF-8?B?' + Utilities.base64Encode(Utilities.newBlob(x).getBytes()) + '?='; };
+  var b = 'mb_' + Utilities.getUuid().replace(/-/g, '');
+  var lines = ['From: ' + from, 'To: ' + toList.join(', ')];
+  if (ccList.length) lines.push('Cc: ' + ccList.join(', '));
+  lines.push('Subject: ' + enc(subj), 'MIME-Version: 1.0', 'Content-Type: multipart/alternative; boundary="' + b + '"');
+  if (msgId) { lines.push('In-Reply-To: ' + msgId); lines.push('References: ' + (refs ? refs + ' ' : '') + msgId); }
+  var part = function (type, body) { return '--' + b + '\r\nContent-Type: ' + type + '; charset="UTF-8"\r\nContent-Transfer-Encoding: base64\r\n\r\n' + Utilities.base64Encode(Utilities.newBlob(body).getBytes()) + '\r\n'; };
+  var mime = lines.join('\r\n') + '\r\n\r\n' + part('text/plain', text) + part('text/html', html) + '--' + b + '--';
+  return Utilities.base64EncodeWebSafe(Utilities.newBlob(mime).getBytes());
+}
+/** mode: 'draft' → Gmail'de taslak, 'send' → gönder. to/cc: e-posta listeleri */
+/** Kullanıcı board'dan bu kartı `since` (ms) sonrasında değiştirdi mi? (taşıma, öncelik, CM…) */
+function userEditedSince_(threadId, since) {
+  if (!since) return false;
+  try { var t = CacheService.getScriptCache().get('edit_' + threadId); return !!t && Number(t) >= Number(since) - 2000; } catch (e) { return false; }
+}
+function sendReply(threadId, body, to, cc, mode, sentAt) {
+  var cfg = getConfig_();
+  var ok = function (e) { return /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(e); };
+  to = (to || []).map(function (e) { return lc_(String(e).trim()); }).filter(ok);
+  cc = (cc || []).map(function (e) { return lc_(String(e).trim()); }).filter(function (e) { return ok(e) && to.indexOf(e) < 0; });
+  if (!to.length) throw new Error('En az bir "Kime" alıcısı seç');
+  var text = String(body || '').replace(/\s+$/, '');
+  if (!text) throw new Error('Mesaj boş');
+  var th = GmailApp.getThreadById(String(threadId));
+  if (!th) throw new Error('Thread bulunamadı');
+  var msgs = th.getMessages().filter(function (m) { return !m.isDraft(); });
+  var last = msgs[msgs.length - 1];
+  var sig = getSignature_(cfg);
+  var html = '<div dir="ltr">' + escHtml_(text).replace(/\n/g, '<br>') + '</div>' +
+             (sig.html ? '<div class="gmail_signature" data-smartmail="gmail_signature">' + tightSig_(sig.html) + '</div>' : '');
+  var raw = buildReplyMimeHtml_(mailbox_(cfg.MY_NAME, cfg.myEmail), to, cc, last, text + (sig.text ? '\n' + sig.text : ''), html);
+  var resource = { raw: raw, threadId: String(threadId) };
+  var card = null;
+  if (mode === 'send') {
+    Gmail.Users.Messages.send(resource, 'me'); log_('INFO', 'Cevap gönderildi: ' + threadId + ' → ' + to.concat(cc).join(', '));
+    // Board'dan cevap verdin: CM yerine işi üstlendin → CM beklenmez, iş devam ediyor (sonraki taramada AI yeniden değerlendirir)
+    try {
+      var lock = LockService.getUserLock(); lock.waitLock(15000);
+      try {
+        var db = loadDb_(), row = db.byId[String(threadId)];
+        if (row && !isTrue_(row.closed)) {
+          row.lastSender = cfg.MY_NAME || cfg.myEmail; row.lastSenderRole = 'ME'; row.lastDate = new Date().toISOString(); row.recentMine = true;
+          if (!userEditedSince_(threadId, sentAt) && ['MY_REPLY', 'WAITING_CM', 'STALE', 'REMINDED', 'CLIENT_STALE'].indexOf(row.status) >= 0 && row.status !== 'WATCH') {
+            row.status = 'IN_PROGRESS'; row.aiStatus = 'IN_PROGRESS'; row.manualStatus = ''; row.followUp = false; row.suggestedReply = '';
+            row.priorityReason = 'Cevabı sen verdin, işi üstlendin';
+          }
+          row.updatedAt = new Date().toISOString();
+          saveRow_(db, row); flushDb_(db); card = toCard_(row);
+        }
+      } finally { lock.releaseLock(); }
+    } catch (e) { log_('WARN', 'Gönderim sonrası kart güncellenemedi: ' + e); }
+  }
+  else Gmail.Users.Drafts.create({ message: resource }, 'me');
+  return { link: gmailLink_(threadId, cfg), mode: mode === 'send' ? 'send' : 'draft', from: cfg.MY_NAME || cfg.myEmail, at: new Date().toISOString(), sig: sig.text || '', card: card };
+}
+
+/** Board: cevap gönderildikten hemen sonra kartı, cevabın içeriğine göre AI ile yeniden sınıfla */
+/** Board: cevap gönderildikten sonra durumu yenile. Hata olursa board'a hata fırlatmaz:
+ *  nedeni Log'a yazılır, kart bir sonraki taramada (AI ile) yeniden sınıflanacak şekilde işaretlenir. */
+function refreshAfterReply(threadId, sentAt) {
+  try { return refreshAfterReplyCore_(threadId, sentAt); }
+  catch (e) {
+    try { log_('ERROR', 'refreshAfterReply ' + threadId + ': ' + (e && e.message || e) + (e && e.stack ? '\n' + String(e.stack).slice(0, 800) : '')); } catch (x) {}
+    try {
+      var lock = LockService.getUserLock(); lock.waitLock(10000);
+      try { var db = loadDb_(), row = db.byId[String(threadId)]; if (row && !isTrue_(row.closed)) { row.msgCount = ''; saveRow_(db, row); flushDb_(db); } }
+      finally { lock.releaseLock(); }
+    } catch (x) {}
+    var r0 = null; try { r0 = loadDb_().byId[String(threadId)]; } catch (x) {}
+    var card = r0 ? toCard_(r0) : null;
+    if (card) card.refreshDeferred = true;
+    return card;
+  }
+}
+function refreshAfterReplyCore_(threadId, sentAt) {
+  var cfg = getConfig_(), id = String(threadId);
+  var row0 = loadDb_().byId[id];
+  if (!row0 || isTrue_(row0.closed) || aiBlocked_()) return row0 ? toCard_(row0) : null;
+  var th = apiThread_(id); if (!th || !th.exists()) return toCard_(row0);
+  var facts = extractFacts_(th, cfg, row0);
+  if (facts.lastSenderRole !== 'ME') return toCard_(row0);          // gönderilen mesaj henüz thread'de görünmüyor
+  var ai = geminiBatch_([buildPrompt_(facts, cfg)], cfg)[0];
+  if (!ai) return toCard_(row0);
+  var lock = LockService.getUserLock(); lock.waitLock(28000);
+  try {
+    var db = loadDb_(), row = db.byId[id] || row0;
+    var newRow = processThread_(th, facts, cfg, row, ai);
+    meetingNotesOverride_(newRow, facts.lastSenderEmail, facts.subject);
+    newRow.memory = String(ai.memory || row.memory || '').slice(0, 12000);
+    newRow.factsCache = JSON.stringify(facts.cache).slice(0, 45000);
+    var userMoved = userEditedSince_(id, sentAt);   // gönderdikten sonra durumu board'dan sen değiştirdiysen o kalır
+    if (userMoved) { newRow.status = row.status; newRow.aiStatus = row.aiStatus; newRow.manualStatus = row.manualStatus; newRow.priority = row.priority; newRow.closed = row.closed; newRow.followUp = row.followUp; }
+    else if (isSticky_(row.manualStatus)) { newRow.status = row.manualStatus; newRow.manualStatus = row.manualStatus; }
+    else if (row.status === 'STALE' || row.status === 'REMINDED' || isTrue_(row.followUp)) { newRow.status = 'REMINDED'; newRow.followUp = true; newRow.remindedAt = facts.lastDate; }
+    else newRow.followUp = false;
+    if (!userMoved) applyStale_(newRow, cfg);
+    if (userMoved || !closeIfIFinished_(newRow, th, cfg)) {
+      try { applyBoardLabels_(th, newRow, cfg); } catch (e) { log_('WARN', 'Label güncellenemedi: ' + e); }
+    }
+    statusLog_(row, newRow, 'cevap sonrası'); saveRow_(db, newRow); flushDb_(db);
+    return toCard_(newRow);
+  } finally { lock.releaseLock(); }
+}
+
+// ------------------------------------------------------------
+//  TOPLANTI NOTLARI (Circleback): Hemen Cevapla'ya düşer, tek tuşla BIZ katılımcılarına iletilir
+// ------------------------------------------------------------
+var MEETING_NOTES_FROM = /@circleback\.ai$/i;
+function isMeetingNotes_(fromEmail, subject) { return MEETING_NOTES_FROM.test(String(fromEmail || '')) && /^\s*(notes for|toplantı notları)\b/i.test(String(subject || '')); }
+function meetingTitle_(subject) { return String(subject || '').replace(/^\s*(fwd?|ilt|re)\s*:\s*/i, '').replace(/^\s*notes for\s*/i, '').trim(); }
+function meetingNotesOverride_(row, fromEmail, subject) {
+  if (!row || !isMeetingNotes_(fromEmail, subject) || isTrue_(row.closed)) return;
+  row.status = 'MY_REPLY'; row.aiStatus = 'MY_REPLY'; row.manualStatus = '';
+  row.priority = Math.min(Number(row.priority) || 2, 2);
+  row.title = 'Toplantı notu: ' + meetingTitle_(subject);
+  row.priorityReason = 'Circleback toplantı notu — BIZ katılımcılarına ilet';
+  row.nextAction = 'Notu toplantıya katılan BIZ ekibine ilet.';
+  row.suggestedReply = '';
+  if (String(row.flags || '').indexOf('MEETING_NOTES') < 0) row.flags = (row.flags ? row.flags + ',' : '') + 'MEETING_NOTES';
+}
+function normTitle_(t) { return foldTr_(String(t || '').replace(/&amp;/g, '&')).replace(/[^a-z0-9]+/g, ' ').trim(); }
+/** Toplantının takvim davetini bulup BIZ'den katılımcıları döndürür */
+function getMeetingAttendees(threadId) {
+  var cfg = getConfig_();
+  var th = GmailApp.getThreadById(String(threadId));
+  if (!th) throw new Error('Thread bulunamadı');
+  var msg = th.getMessages().filter(function (m) { return isMeetingNotes_(lc_((parseAddresses_(m.getFrom())[0] || {}).email || ''), m.getSubject()); })[0] || th.getMessages()[0];
+  var title = meetingTitle_(msg.getSubject()), want = normTitle_(title), at = msg.getDate();
+  var best = null, bestScore = -1;
+  var cals = [CalendarApp.getDefaultCalendar()];
+  try { CalendarApp.getAllCalendars().forEach(function (c) { if (c.getId() !== cals[0].getId() && c.isOwnedByMe && c.isOwnedByMe()) cals.push(c); }); } catch (e) {}
+  cals.forEach(function (cal) {
+    var evs = []; try { evs = cal.getEvents(new Date(at.getTime() - 36 * 3600000), new Date(at.getTime() + 2 * 3600000)); } catch (e) {}
+    evs.forEach(function (ev) {
+      var t = normTitle_(ev.getTitle()); if (!t) return;
+      var sc = t === want ? 3 : (t.indexOf(want) >= 0 || want.indexOf(t) >= 0 ? 2 : 0);
+      if (!sc) return;
+      var gap = Math.abs(at.getTime() - ev.getEndTime().getTime()) / 3600000;   // not toplantı bitince gelir
+      var score = sc * 100 - gap;
+      if (score > bestScore) { bestScore = score; best = ev; }
+    });
+  });
+  var sem = [], others = 0, seen = {};
+  var push = function (email, name) {
+    email = lc_(email || ''); if (!email || seen[email] || email === cfg.myEmail) return; seen[email] = 1;
+    var dom = email.split('@')[1] || '';
+    if (cfg.internalDomains.indexOf(dom) >= 0 && !/^(mt|ad|tokyo|all|ekip|team)@/.test(email) && !/resource\.calendar/.test(email)) sem.push({ email: email, name: name || '' });
+    else others++;
+  };
+  if (best) {
+    try { best.getGuestList(true).forEach(function (g) { if (String(g.getGuestStatus()) !== 'NO') push(g.getEmail(), g.getName && g.getName()); }); } catch (e) {}
+    try { push(best.getCreators()[0]); } catch (e) {}
+  }
+  // Daha önce bu toplantının notunu kime ilettiysen onlar da önerilir (davet bulunamazsa işe yarar)
+  var prev = [];
+  try {
+    GmailApp.search('in:sent subject:"' + title.replace(/"/g, '') + '" newer_than:90d', 0, 5).forEach(function (t2) {
+      t2.getMessages().forEach(function (m) { if (lc_((parseAddresses_(m.getFrom())[0] || {}).email || '') === cfg.myEmail && /^\s*fwd?:/i.test(m.getSubject())) parseAddresses_(m.getTo()).concat(parseAddresses_(m.getCc() || '')).forEach(function (a) { prev.push(lc_(a.email)); }); });
+    });
+  } catch (e) {}
+  return { meeting: title, eventFound: !!best, eventTitle: best ? best.getTitle() : '', when: best ? best.getStartTime().toISOString() : '', sem: sem, others: others,
+           previous: prev.filter(function (e, i, a) { return e && a.indexOf(e) === i && e !== cfg.myEmail && !seen[e]; }) };
+}
+/** Toplantı notunu seçilen kişilere ilet; kart Done olur */
+function forwardMeetingNotes(threadId, to) {
+  var cfg = getConfig_();
+  var ok = function (e) { return /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/.test(e); };
+  to = (to || []).map(function (e) { return lc_(String(e).trim()); }).filter(ok);
+  if (!to.length) throw new Error('İletilecek kimse seçilmedi');
+  var th = GmailApp.getThreadById(String(threadId));
+  if (!th) throw new Error('Thread bulunamadı');
+  var msg = th.getMessages().filter(function (m) { return isMeetingNotes_(lc_((parseAddresses_(m.getFrom())[0] || {}).email || ''), m.getSubject()); })[0];
+  if (!msg) throw new Error('Toplantı notu maili bulunamadı');
+  msg.forward(to.join(','));
+  log_('INFO', 'Toplantı notu iletildi: ' + meetingTitle_(msg.getSubject()) + ' → ' + to.join(', '));
+  var lock = LockService.getUserLock(); lock.waitLock(15000);
+  try { var db = loadDb_(); moveOne_(db, cfg, threadId, 'DONE'); flushDb_(db); } finally { lock.releaseLock(); }
+  return { sent: to.length };
+}
+
 function createReplyDraft(threadId, body) {
   var th = GmailApp.getThreadById(String(threadId));
   if (!th) throw new Error('Thread bulunamadı');
@@ -2728,12 +4643,19 @@ function createReplyDraft(threadId, body) {
   var sig = getSignature_(cfg);
   var text = String(body || '').replace(/\s+$/, '');
   var html = '<div dir="ltr">' + escHtml_(text).replace(/\n/g, '<br>') + '</div>' +
-             (sig.html ? '<br><div class="gmail_signature" data-smartmail="gmail_signature">' + sig.html + '</div>' : '');
+             (sig.html ? '<div class="gmail_signature" data-smartmail="gmail_signature">' + tightSig_(sig.html) + '</div>' : '');
   msgs[msgs.length - 1].createDraftReplyAll(text + (sig.text ? '\n' + sig.text : ''), { htmlBody: html });
   return gmailLink_(threadId, cfg);
 }
 
 /** Gmail'de tanımlı imza (Ayarlar > İmza). 6 saat önbellekte tutulur. */
+/** İmzanın başındaki boş satırları/boşlukları at: "Sevgiler,"den hemen sonra imza gelsin */
+function tightSig_(h) {
+  var re = /^((?:<(?:div|p|span)[^>]*>)*?)(?:\s|&nbsp;|<br\s*\/?>|<(div|p|span)[^>]*>\s*(?:&nbsp;|<br\s*\/?>)?\s*<\/\2>)+/i;
+  var t = String(h || ''), prev = null;
+  while (t !== prev) { prev = t; t = t.replace(re, '$1'); }
+  return t;
+}
 function getSignature_(cfg) {
   var cache = CacheService.getScriptCache();
   var hit = cache.get('SIGNATURE');

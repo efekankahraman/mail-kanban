@@ -16,6 +16,8 @@ REPO=https://raw.githubusercontent.com/efekankahraman/mail-kanban/main
 $REPO/assets/Code.gs          # backend; kişiselleştirme SADECE en üstteki PERSONAL bloğunda
 $REPO/assets/Setup.gs         # otomatik kurulum: ilk açılışta Gemini key sayfası, tetikleyiciler, ilk tarama
 $REPO/assets/Style.gs         # elle konan yazı avatarı (normalde boş)
+$REPO/assets/Approvals.gs     # ✅ Onaylar sayfası: AI hazırlar, kullanıcı tek tuşla onaylar
+$REPO/assets/Planned.gs       # 🕒 planlı Jira yorumları (ileri saatte yazılır)
 $REPO/assets/Board.html       # board arayüzü
 $REPO/assets/appsscript.json  # manifest (Gmail Advanced Service + web app ayarı)
 $REPO/scripts/clasp-auth.mjs  # clasp girişi, iki adımda (uzun süre açık terminal gerekmez)
@@ -51,7 +53,7 @@ Herkesin iş akışı farklı. Varsayımla ilerleme. AskUserQuestion ile (seçen
 6. **Takip süreleri:** Kaç iş günü hareketsiz kalınca "bekleyen" sayılsın (varsayılan 3)? Hatırlatmadan sonra kaç iş günü beklensin (varsayılan 2)? Hatırlatma metni ne olsun (varsayılan "burada bir gelişme var mı")?
 7. **Yok sayılacaklar:** Artık bakmadığı marka/konu var mı? Bunlara ait mailler, kullanıcıya direkt değilse okundu yapılır ve board'a gelmez.
 8. **Cevap taslağı üslubu:** Açılış, kapanış ve ton. Varsayılan: "Selamlar, … Sevgiler,", ne çok resmi ne çok samimi, karşı taraf "Bey/Hanım" demediyse kullanma. Gmail imzası otomatik eklenir.
-9. **Şirket bilgisi:** Şirket adı, şirket domaini, imzadaki adres parçaları. Adres parçaları marka sanılmasın diye sorulur; örnek vakada imzadaki "Darüşşafaka" semt adı markayla karıştı.
+9. **Şirket bilgisi:** Şirket adı, şirket domaini, imzadaki adres parçaları. Adres parçaları marka sanılmasın diye sorulur; örnek vakada imzadaki bir semt adı markayla karıştı.
 10. **Jira/Asana vb.:** Kullanıyorsa bildirim adresinin parçası (ör. `atlassian.net`, `asana.com`).
 
 11. **Gmail'i nasıl yönetiyor? (ÇOK ÖNEMLİ, mutlaka sor ve anlat)** Board'un standart çalışma şekli şudur, kullanıcıya açıkça söyle:
@@ -100,7 +102,7 @@ Her kullanıcı adımını tek tek iste, cevabını bekle. Link ve talimatları 
 ```bash
 C=~/clasp/node_modules/.bin/clasp
 $C create --type sheets --title "Mail Board" --json      # Sheet + bağlı script; çıktıdan scriptId ve Sheet ID/URL'sini al
-for f in Code.gs Setup.gs Style.gs Board.html appsscript.json; do curl -fsSL "$REPO/assets/$f" -o "$f"; done
+for f in Code.gs Setup.gs Style.gs Approvals.gs Planned.gs Board.html appsscript.json; do curl -fsSL "$REPO/assets/$f" -o "$f"; done
 # Code.gs'e PERSONAL bloğunu yaz (3d), sözdizimini kontrol et
 sed -i "s/^var BOOT_SPREADSHEET_ID = '';/var BOOT_SPREADSHEET_ID = '<SHEET_ID>';/" Setup.gs
 printf '**/*.md\nscripts/**\nnode_modules/**\n' > .claspignore
